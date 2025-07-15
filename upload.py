@@ -1,46 +1,61 @@
 import os
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
+import pickle
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
 from googleapiclient.http import MediaFileUpload
+from google.auth.transport.requests import Request
 
-SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
-CLIENT_SECRET = 'client_secret.json'  # سيتم تعبئته من المتغيرات البيئية
-TOKEN_PICKLE = 'token_upload.pickle'
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+CLIENT_SECRETS_FILE = "client_secret_youtube.json"
+TOKEN_PICKLE = "token.pickle"
 
-def upload_to_youtube():
-    # تحميل الإعتمادات
-    creds = service_account.Credentials.from_service_account_file(CLIENT_SECRET, scopes=SCOPES)
-    youtube = build('youtube', 'v3', credentials=creds)
+def get_authenticated_service():
+    creds = None
+    if os.path.exists(TOKEN_PICKLE):
+        with open(TOKEN_PICKLE, "rb") as token:
+            creds = pickle.load(token)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+                CLIENT_SECRETS_FILE, SCOPES)
+            creds = flow.run_console()
+        with open(TOKEN_PICKLE, "wb") as token:
+            pickle.dump(creds, token)
+    return googleapiclient.discovery.build("youtube", "v3", credentials=creds)
 
-    folder_path = './downloaded_videos'  # تأكد من أن هذا المجلد يحتوي على الفيديوهات
+def upload_video(youtube, video_path, title):
+    request_body = {
+        "snippet": {
+            "title": title,
+            "description": "تم الرفع تلقائيًا من Google Drive",
+            "tags": ["قرآن", "تلقائي"],
+            "categoryId": "22"
+        },
+        "status": {
+            "privacyStatus": "public"
+        }
+    }
+    media_file = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype="video/*")
+    request = youtube.videos().insert(
+        part="snippet,status",
+        body=request_body,
+        media_body=media_file
+    )
+    response = None
+    while response is None:
+        status, response = request.next_chunk()
+        if status:
+            print(f"⬆️ رفع: {int(status.progress() * 100)}%")
+    print(f"✅ تم رفع الفيديو: https://youtu.be/{response['id']}")
 
-    # تصفح الملفات في المجلد وتحميلها
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
+def main():
+    youtube = get_authenticated_service()
+    folder = "downloaded_videos"
+    for filename in os.listdir(folder):
+        filepath = os.path.join(folder, filename)
+        upload_video(youtube, filepath, filename)
 
-        if os.path.isfile(file_path):
-            print(f"⬆️ رفع الفيديو: {filename}")
-            request_body = {
-                'snippet': {
-                    'title': filename,
-                    'description': 'تم الرفع تلقائيًا من Google Drive',
-                    'tags': ['تلقائي'],
-                    'categoryId': '22',  # People & Blogs
-                },
-                'status': {
-                    'privacyStatus': 'public',
-                }
-            }
-
-            media = MediaFileUpload(file_path, mimetype='video/*', resumable=True)
-
-            response = youtube.videos().insert(
-                part='snippet,status',
-                body=request_body,
-                media_body=media
-            ).execute()
-
-            print(f"✅ تم رفع الفيديو: https://youtu.be/{response['id']}")
-
-if __name__ == '__main__':
-    upload_to_youtube()
+if __name__ == "__main__":
+    main()
