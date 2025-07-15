@@ -3,7 +3,7 @@ name: Daily YouTube Upload
 on:
   schedule:
     - cron: '0 7 * * *'  # كل يوم الساعة 7 صباحًا بتوقيت UTC
-  workflow_dispatch:      # إمكانية التشغيل اليدوي من GitHub
+  workflow_dispatch:       # لتشغيله يدويًا من GitHub Actions
 
 jobs:
   upload:
