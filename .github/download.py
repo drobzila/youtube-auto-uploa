@@ -7,7 +7,7 @@ SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 FOLDER_ID = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
 
 def download_videos():
-    creds = service_account.Credentials.from_service_account_file("client_secret.json", scopes=SCOPES)
+    creds = service_account.Credentials.from_service_account_file("client_secret_drive.json", scopes=SCOPES)
     service = build('drive', 'v3', credentials=creds)
 
     query = f"'{FOLDER_ID}' in parents and mimeType contains 'video/' and trashed=false"
