@@ -26,3 +26,6 @@ jobs:
         env:
           CLIENT_SECRET_YOUTUBE: ${{ secrets.CLIENT_SECRET_YOUTUBE }}  # Set secret from GitHub
         run: python upload.py
+        - name: Set up environment variables
+  run: echo "CLIENT_SECRET_YOUTUBE=${{ secrets.CLIENT_SECRET_YOUTUBE }}" >> $GITHUB_ENV
+
