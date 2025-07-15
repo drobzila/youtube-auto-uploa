@@ -6,7 +6,7 @@ from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-CLIENT_SECRETS_FILE = "client_secret_youtube.json"
+CLIENT_SECRET_YOUTUBE = os.getenv('CLIENT_SECRET_YOUTUBE')
 TOKEN_PICKLE = "token.pickle"
 
 def get_authenticated_service():
@@ -19,7 +19,7 @@ def get_authenticated_service():
             creds.refresh(Request())
         else:
             flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-                CLIENT_SECRETS_FILE, SCOPES)
+                CLIENT_SECRET_YOUTUBE, SCOPES)
             creds = flow.run_console()
         with open(TOKEN_PICKLE, "wb") as token:
             pickle.dump(creds, token)
