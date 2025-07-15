@@ -101,7 +101,13 @@ def upload_and_schedule(folder, times_per_day, timezone_offset, videos_per_day):
     print("🎉 تم رفع وجدولة كل الفيديوهات!")
 
 if __name__ == "__main__":
-    folder_path = input("📁 اختر مجلد الفيديوهات: ")
-    times = input("🕒 اختر الأوقات للفيديوهات (مثال: 08:00 14:00 20:00): ").split()
-    timezone_offset = int(input("🌍 اختر المنطقة الزمنية (مثال: 3 يعني UTC+3): "))
+    # حدد المجلد مباشرة في السكربت
+    folder_path = "C:/Users/الاخوة ال4/Pictures/Music/Desktop/youtube-auto-uploa-main/videos"  # مثال للمجلد الذي يحتوي على الفيديوهات
+    
+    # حدد الأوقات مباشرة هنا
+    times = ["08:00", "14:00", "20:00"]  # اختر الأوقات التي تريدها للنشر
+    
+    # اختر المنطقة الزمنية حسب حاجتك
+    timezone_offset = 3  # مثال: المنطقة الزمنية UTC+3
+    
     upload_and_schedule(folder_path, times, timezone_offset, 5)
