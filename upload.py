@@ -19,7 +19,8 @@ def authenticate():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", SCOPES)
-            creds = flow.run_local_server(port=0)
+            # استبدال run_local_server بـ run_console
+            creds = flow.run_console()  # تم التعديل هنا
         with open("token_upload.pickle", "wb") as token:
             pickle.dump(creds, token)
     return build("youtube", "v3", credentials=creds)
@@ -91,7 +92,7 @@ def upload_and_schedule(folder, times_per_day, timezone_offset, videos_per_day):
             status, response = upload_request.next_chunk()
             if status:
                 elapsed = time.time() - start_time
-                file_size = os.path.getsize(video_path)
+                file_size = os.pathsize(video_path)
                 speed = (file_size / 1024 / 1024) / elapsed if elapsed > 0 else 0
                 print(f"⚡ سرعة الرفع: {speed:.2f} MB/s")
         
