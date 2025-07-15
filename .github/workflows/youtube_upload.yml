@@ -2,8 +2,8 @@ name: Daily YouTube Upload
 
 on:
   schedule:
-    - cron: '0 7 * * *'
-  workflow_dispatch:
+    - cron: '0 7 * * *'  # كل يوم الساعة 7 صباحًا بتوقيت UTC
+  workflow_dispatch:      # إمكانية التشغيل اليدوي من GitHub
 
 jobs:
   upload:
@@ -19,8 +19,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          run: pip install -r .github/requirements.txt
+        run: pip install -r .github/requirements.txt
 
       - name: Restore credentials
         run: |
