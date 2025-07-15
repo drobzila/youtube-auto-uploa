@@ -6,7 +6,7 @@ from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-CLIENT_SECRETS_FILE = "client_secret.json"
+CLIENT_SECRETS_FILE = "client_secret_youtube.json"
 TOKEN_PICKLE = "token.pickle"
 
 def get_authenticated_service():
