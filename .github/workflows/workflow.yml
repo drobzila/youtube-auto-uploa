@@ -1,37 +1,28 @@
-name: Daily YouTube Upload
+name: Upload YouTube Videos
 
 on:
-  schedule:
-    - cron: '0 7 * * *'  # يعمل كل يوم الساعة 7 صباحًا بتوقيت UTC
-  workflow_dispatch:  # يتيح التشغيل اليدوي من صفحة Actions
+  push:
+    branches:
+      - main
 
 jobs:
-  upload:
+  upload_video:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - name: Check out repository
+        uses: actions/checkout@v2
+      
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v2
         with:
-          python-version: '3.11'
-
+          python-version: '3.x'
+      
       - name: Install dependencies
         run: |
-          pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
-
-      - name: Restore credentials
-        run: |
-          echo "$CLIENT_SECRET" > client_secret.json
-          echo "$TOKEN_PICKLE" | base64 -d > token_upload.pickle
-          echo "$DRIVE_CREDS" > drive_creds.txt
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Run upload script
+        env:
+          CLIENT_SECRET_YOUTUBE: ${{ secrets.CLIENT_SECRET_YOUTUBE }}  # Set secret from GitHub
         run: python upload.py
-
-    env:
-      CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-      TOKEN_PICKLE: ${{ secrets.TOKEN_PICKLE }}
-      DRIVE_CREDS: ${{ secrets.DRIVE_CREDS }}
