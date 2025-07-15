@@ -21,14 +21,14 @@ jobs:
       - name: Install dependencies
         run: pip install google-auth google-auth-oauthlib google-api-python-client
 
-      - name: Restore client secret for Drive (service account)
-        run: echo "${{ secrets.GOOGLE_CREDS }}" > client_secret.json
+      - name: Restore Drive service account credentials
+        run: echo "${{ secrets.GOOGLE_CREDS }}" > client_secret_drive.json
 
       - name: Download videos from Drive
         run: python download.py
 
-      - name: Restore OAuth client secret for YouTube
-        run: echo "${{ secrets.CLIENT_SECRET }}" > client_secret.json
+      - name: Restore YouTube OAuth client secret
+        run: echo "${{ secrets.CLIENT_SECRET }}" > client_secret_youtube.json
 
       - name: Restore token.pickle for YouTube OAuth
         run: echo "${{ secrets.TOKEN_PICKLE }}" | base64 -d > token.pickle
