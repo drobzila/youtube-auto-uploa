@@ -11,15 +11,12 @@ import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-# تحميل بيانات الاعتماد من الملف
-def load_credentials_from_file(filename):
-    with open(filename, 'r') as file:
-        credentials_info = json.load(file)
-    return credentials_info
+# تحميل بيانات الاعتماد من الـ secrets في GitHub Actions
+def load_credentials_from_github_secret(secret_name):
+    return json.loads(os.getenv(secret_name))
 
 # توثيق الوصول إلى Google Drive باستخدام Service Account
-def authenticate_google_drive(credentials_file):
-    credentials_info = load_credentials_from_file(credentials_file)
+def authenticate_google_drive(credentials_info):
     credentials = ServiceAccountCredentials.from_service_account_info(
         credentials_info,
         scopes=['https://www.googleapis.com/auth/drive']
@@ -28,7 +25,7 @@ def authenticate_google_drive(credentials_file):
     return drive_service
 
 # توثيق الوصول إلى YouTube باستخدام OAuth 2.0
-def authenticate_youtube_oauth(client_secrets_file):
+def authenticate_youtube_oauth(credentials_info):
     SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
     creds = None
     
@@ -42,7 +39,7 @@ def authenticate_youtube_oauth(client_secrets_file):
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(client_secrets_file, SCOPES)
+            flow = InstalledAppFlow.from_client_config(credentials_info, SCOPES)
             creds = flow.run_local_server(port=0)
         
         # حفظ بيانات التوثيق لتستخدم لاحقًا
@@ -142,15 +139,16 @@ def schedule_videos(drive_service, youtube_service):
 
 # الوظيفة الرئيسية
 def main():
-    google_drive_credentials_file = r'C:\Users\الاخوة ال4\Pictures\Music\Desktop\google_drive_credentials.json'  # قم بتحديد المسار الصحيح للملف
-    youtube_credentials_file = r'C:\Users\الاخوة ال4\Pictures\Music\Desktop\client_secrets.json'  # قم بتحديد المسار الصحيح للملف
+    # تحميل بيانات الاعتماد من GitHub Secrets
+    google_drive_credentials = load_credentials_from_github_secret('GOOGLE_DRIVE_CREDENTIALS')
+    youtube_credentials = load_credentials_from_github_secret('CLIENT_SECRETS_JSON')
 
     try:
         # توثيق الوصول إلى Google Drive باستخدام Service Account
-        drive_service = authenticate_google_drive(google_drive_credentials_file)
+        drive_service = authenticate_google_drive(google_drive_credentials)
         
         # توثيق الوصول إلى YouTube باستخدام OAuth 2.0
-        youtube_service = authenticate_youtube_oauth(youtube_credentials_file)
+        youtube_service = authenticate_youtube_oauth(youtube_credentials)
         
         # جدولة رفع الفيديوهات
         schedule_videos(drive_service, youtube_service)
