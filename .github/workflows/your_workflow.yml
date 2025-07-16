@@ -6,27 +6,34 @@ on:
       - main
 
 jobs:
-  upload:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v2
+      # خطوة التحقق من المستودع
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
+      # خطوة لتثبيت Python
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.13'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      # تثبيت الحزم المطلوبة مباشرة
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-api-python-client==2.0.2
+          pip install google-auth-httplib2==0.1.0
+          pip install google-auth-oauthlib==0.4.6
+          pip install google-auth==2.19.0
+          pip install google-auth-requests==0.1.0
 
-    - name: Set up Google Drive and YouTube credentials
-      run: |
-        echo "GOOGLE_DRIVE_CREDENTIALS=${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}" >> $GITHUB_ENV
-        echo "CLIENT_SECRETS_JSON=${{ secrets.CLIENT_SECRETS_JSON }}" >> $GITHUB_ENV
-
-    - name: Run upload script
-      run: python upload_videos.py
+      # خطوة لتشغيل السكربت
+      - name: Run upload script
+        run: python upload_videos.py
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
+          YOUTUBE_CREDENTIALS: ${{ secrets.YOUTUBE_CREDENTIALS }}
