@@ -1,19 +1,26 @@
 import os
-import google.auth
+import json
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-import json
-import time
-from datetime import datetime, timedelta
-import pickle
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+import pickle
+import time
+from datetime import datetime
 
-# تحميل بيانات الاعتماد من الـ secrets في GitHub Actions
-def load_credentials_from_github_secret(secret_name):
-    return json.loads(os.getenv(secret_name))
+# تحميل بيانات الاعتماد من البيئة بدلاً من تحميلها من ملف
+def load_credentials_from_env():
+    # قراءة بيانات الـ Google Drive credentials من secret
+    google_drive_credentials_json = os.environ['GOOGLE_DRIVE_CREDENTIALS']
+    google_drive_credentials_info = json.loads(google_drive_credentials_json)
+
+    # قراءة بيانات الـ YouTube OAuth من secret
+    client_secrets_json = os.environ['CLIENT_SECRETS_JSON']
+    client_secrets_info = json.loads(client_secrets_json)
+
+    return google_drive_credentials_info, client_secrets_info
 
 # توثيق الوصول إلى Google Drive باستخدام Service Account
 def authenticate_google_drive(credentials_info):
@@ -25,7 +32,7 @@ def authenticate_google_drive(credentials_info):
     return drive_service
 
 # توثيق الوصول إلى YouTube باستخدام OAuth 2.0
-def authenticate_youtube_oauth(credentials_info):
+def authenticate_youtube_oauth(client_secrets_info):
     SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
     creds = None
     
@@ -39,7 +46,7 @@ def authenticate_youtube_oauth(credentials_info):
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_config(credentials_info, SCOPES)
+            flow = InstalledAppFlow.from_client_config(client_secrets_info, SCOPES)
             creds = flow.run_local_server(port=0)
         
         # حفظ بيانات التوثيق لتستخدم لاحقًا
@@ -139,16 +146,15 @@ def schedule_videos(drive_service, youtube_service):
 
 # الوظيفة الرئيسية
 def main():
-    # تحميل بيانات الاعتماد من GitHub Secrets
-    google_drive_credentials = load_credentials_from_github_secret('GOOGLE_DRIVE_CREDENTIALS')
-    youtube_credentials = load_credentials_from_github_secret('CLIENT_SECRETS_JSON')
+    # قراءة الـ credentials من البيئة (GitHub Secrets)
+    google_drive_credentials_info, client_secrets_info = load_credentials_from_env()
 
     try:
         # توثيق الوصول إلى Google Drive باستخدام Service Account
-        drive_service = authenticate_google_drive(google_drive_credentials)
+        drive_service = authenticate_google_drive(google_drive_credentials_info)
         
         # توثيق الوصول إلى YouTube باستخدام OAuth 2.0
-        youtube_service = authenticate_youtube_oauth(youtube_credentials)
+        youtube_service = authenticate_youtube_oauth(client_secrets_info)
         
         # جدولة رفع الفيديوهات
         schedule_videos(drive_service, youtube_service)
