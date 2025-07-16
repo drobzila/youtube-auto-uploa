@@ -28,7 +28,6 @@ jobs:
           pip install google-auth-httplib2==0.1.0
           pip install google-auth-oauthlib==0.4.6
           pip install google-auth==2.19.0
-          pip install google-auth-requests==0.1.0
 
       # خطوة لتشغيل السكربت
       - name: Run upload script
