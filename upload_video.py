@@ -94,7 +94,7 @@ def delete_video_from_drive(file_id):
         print(f"An error occurred while deleting the video: {e}")
 
 def main():
-    1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ = "معرف_المجلد_هنا"  # ضع معرف المجلد هنا
+    folder_id = "1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ"  # معرف المجلد الصحيح
 
     # استرجاع الخدمات
     drive_service = get_drive_service()
