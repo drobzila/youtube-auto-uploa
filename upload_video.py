@@ -1,55 +1,28 @@
-import os
-import google.auth
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google.oauth2.credentials import Credentials
+name: Download Google Drive Videos
 
-# إعداد المسار للفيديو باستخدام os
-def upload_video(file_path, title, description):
-    # التأكد من أن ملف الفيديو موجود
-    if not os.path.exists(file_path):
-        print(f"Error: The video file at {file_path} does not exist.")
-        return
+on:
+  schedule:
+    - cron: '0 7 * * *'  # يوميًا الساعة 7 صباحًا (بتوقيت UTC)
 
-    # إعداد التصريحات باستخدام refresh token
-    credentials = Credentials.from_authorized_user_info(
-        {
-            'client_id': os.getenv('YOUTUBE_CLIENT_ID'),
-            'client_secret': os.getenv('YOUTUBE_CLIENT_SECRET'),
-            'refresh_token': os.getenv('YOUTUBE_REFRESH_TOKEN'),
-        },
-        scopes=["https://www.googleapis.com/auth/youtube.upload"]
-    )
+jobs:
+  download-videos:
+    runs-on: ubuntu-latest
 
-    # بناء خدمة YouTube API
-    youtube = build('youtube', 'v3', credentials=credentials)
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-    # إعداد ملف الفيديو
-    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
 
-    # تحميل الفيديو إلى YouTube
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body=dict(
-            snippet=dict(
-                title=title,
-                description=description,
-            ),
-            status=dict(
-                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
-            ),
-        ),
-        media_body=media
-    )
+    - name: Install dependencies
+      run: |
+        pip install google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
-    # إجراء تحميل الفيديو
-    response = request.execute()
-
-    print(f"Video uploaded successfully! Video ID: {response['id']}")
-
-
-# المسار الكامل إلى الفيديو باستخدام os
-video_path = os.path.join(os.getcwd(), 'videos', 'test_video.mp4')
-
-# قم بتشغيل رفع الفيديو
-upload_video(video_path, 'Test Video', 'This is a test video uploaded via GitHub Actions.')
+    - name: Run video download script
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}  # سر client_secrets.json
+      run: |
+        python download_video.py
