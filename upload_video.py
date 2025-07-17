@@ -1,46 +1,48 @@
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
-import io
 import os
-import pickle
-import google.auth
-from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+import io
+import pickle
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 
-# مسارات الملفات و IDs
-DRIVE_FOLDER_ID = "1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ"  # ID المجلد في Google Drive
+# تعريف أذونات API
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/youtube.upload']
 
-# خطوات المصادقة لحساب Google Drive و YouTube
+# مسار المجلد في Google Drive
+DRIVE_FOLDER_ID = "1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ"  # تغيير هذا إلى ID المجلد الخاص بك
+
+# مصادقة حساب Google Drive
 def authenticate_drive():
     creds = None
-    # إذا كان الملف موجودًا، نقوم بتحميل الـ credentials
     if os.path.exists('token_drive.pickle'):
         with open('token_drive.pickle', 'rb') as token:
             creds = pickle.load(token)
-    
-    # إذا لم يكن هناك credentials أو كانت غير صالحة، نحتاج لإعادة المصادقة
+
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file('drive_client_secrets.json', SCOPES)
+            # استخدام بيانات المصادقة من أسرار البيئة
+            drive_client_id = os.getenv('DRIVE_CLIENT_ID')
+            drive_client_secret = os.getenv('DRIVE_CLIENT_SECRET')
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'drive_client_secrets.json', SCOPES)
             creds = flow.run_local_server(port=0)
-        
-        # حفظ الـ credentials لاستخدامها لاحقًا
+
         with open('token_drive.pickle', 'wb') as token:
             pickle.dump(creds, token)
-
+    
     drive_service = build('drive', 'v3', credentials=creds)
     return drive_service
 
-# تحميل ملف من Google Drive
+# تحميل فيديو من Google Drive
 def download_file_from_drive(drive_service, file_id, destination_path):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.FileIO(destination_path, 'wb')
     downloader = MediaIoBaseDownload(fh, request)
-    
+
     done = False
     while done is False:
         status, done = downloader.next_chunk()
@@ -51,13 +53,17 @@ def download_file_from_drive(drive_service, file_id, destination_path):
 
 # رفع الفيديو إلى YouTube
 def upload_video(file_path, title, description):
-    # مصادقة لـ YouTube API
+    # استخدام بيانات المصادقة المخزنة كأسرار في البيئة
+    youtube_client_id = os.getenv('YOUTUBE_CLIENT_ID')
+    youtube_client_secret = os.getenv('YOUTUBE_CLIENT_SECRET')
+    youtube_refresh_token = os.getenv('YOUTUBE_REFRESH_TOKEN')
+
     credentials = Credentials.from_authorized_user_info(
-        client_id='YOUTUBE_CLIENT_ID',
-        client_secret='YOUTUBE_CLIENT_SECRET',
-        refresh_token='YOUTUBE_REFRESH_TOKEN'
+        client_id=youtube_client_id,
+        client_secret=youtube_client_secret,
+        refresh_token=youtube_refresh_token
     )
-    
+
     youtube_service = build('youtube', 'v3', credentials=credentials)
 
     # إعداد الفيديو الذي سيتم رفعه
