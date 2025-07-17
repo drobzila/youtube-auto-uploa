@@ -5,33 +5,33 @@ on:
     branches:
       - main
     paths:
-      - '**/*.mp4'
+      - '**/*.mp4'  # يمكنك تحديد الملفات التي تريد رفعها (مثلاً: *.mp4)
 
 jobs:
   upload_video:
     runs-on: ubuntu-latest
 
     steps:
+      # إعداد بيئة Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
+      # تثبيت المكتبات المطلوبة
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
-      # إضافة بيانات JSON مباشرة إلى environment variables
-      - name: Set Google Drive and YouTube credentials
-        run: |
-          echo "$GOOGLE_DRIVE_CREDENTIALS_JSON" > google_drive_credentials.json
-          echo "$CLIENT_SECRETS_JSON" > client_secrets.json
+      # إضافة بيانات الاعتماد الخاصة بـ Google API إلى البيئة
+      - name: Set Google API credentials
+        run: echo "YOUTUBE_SERVICE_ACCOUNT_JSON=${{ secrets.YOUTUBE_SERVICE_ACCOUNT_JSON }}" >> $GITHUB_ENV
 
-      # تحميل السكربت وتشغيله
-      - name: Upload video to YouTube
+      # تنزيل السكربت وتشغيله
+      - name: Download video from Google Drive and upload to YouTube
         run: |
+          # التأكد من أن الفيديو قد تم رفعه إلى Google Drive من قبل
           python upload_videos.py
         env:
-          GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
-          CLIENT_SECRETS_JSON: ${{ secrets.CLIENT_SECRETS_JSON }}
+          YOUTUBE_SERVICE_ACCOUNT_JSON: ${{ secrets.YOUTUBE_SERVICE_ACCOUNT_JSON }}
