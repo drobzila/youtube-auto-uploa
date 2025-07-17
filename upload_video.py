@@ -28,30 +28,15 @@ def get_drive_service():
     return drive_service
 
 # تحميل الفيديو من Google Drive
-def download_video_from_drive(folder_id, drive_service):
-    results = drive_service.files().list(q=f"'{folder_id}' in parents", pageSize=10).execute()
-    items = results.get('files', [])
-    
-    if not items:
-        print('No videos found in this folder.')
-        return None
-
-    for item in items:
-        file_name = item['name']
-        file_mime_type = item['mimeType']
-        
-        # التأكد من أن الملف هو فيديو
-        if 'video' in file_mime_type:
-            file_id = item['id']
-            request = drive_service.files().get_media(fileId=file_id)
-            fh = io.FileIO(file_name, 'wb')
-            downloader = MediaIoBaseDownload(fh, request)
-            done = False
-            while done is False:
-                status, done = downloader.next_chunk()
-                print(f"Download {int(status.progress() * 100)}%.")
-            return file_name
-    return None
+def download_video_from_drive(file_id, file_name, drive_service):
+    request = drive_service.files().get_media(fileId=file_id)
+    fh = io.FileIO(file_name, 'wb')
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        print(f"Download {int(status.progress() * 100)}%.")
+    return file_name
 
 # إعداد التصريحات من Google API
 def get_youtube_service():
@@ -67,7 +52,7 @@ def get_youtube_service():
     return youtube_service
 
 # رفع الفيديو إلى YouTube
-def upload_video_to_youtube(file_path, title, description, youtube_service):
+def upload_video_to_youtube(file_path, title, description, youtube_service, file_id):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
     request = youtube_service.videos().insert(
@@ -87,14 +72,49 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     response = request.execute()
     print(f"Video uploaded successfully! Video ID: {response['id']}")
 
-def main():
-    folder_id = "1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ"  # معرف المجلد الصحيح
-    drive_service = get_drive_service()
-    video_file = download_video_from_drive(folder_id, drive_service)
-    
-    if video_file:
-        youtube_service = get_youtube_service()
-        upload_video_to_youtube(video_file, 'Video from Google Drive', 'Uploaded from Google Drive using script', youtube_service)
+    # إضافة الفيديو إلى السجل بعد رفعه
+    add_uploaded_video_to_file(response['id'])
 
-if __name__ == '__main__':
+    # حذف الفيديو من Google Drive بعد رفعه إلى YouTube
+    delete_video_from_drive(file_id)
+
+# إضافة معرّف الفيديو إلى ملف السجل
+def add_uploaded_video_to_file(video_id):
+    with open("uploaded_videos.txt", "a") as file:
+        file.write(video_id + "\n")
+        file.flush()  # التأكد من الكتابة في الملف فورًا
+    print(f"Video ID {video_id} added to uploaded_videos.txt.")
+
+# حذف الفيديو من Google Drive
+def delete_video_from_drive(file_id):
+    try:
+        drive_service.files().delete(fileId=file_id).execute()
+        print(f"Video with ID {file_id} deleted from Google Drive.")
+    except Exception as e:
+        print(f"An error occurred while deleting the video: {e}")
+
+def main():
+    # معرّف المجلد الذي يحتوي على الفيديوهات
+    folder_id = "معرف_المجلد_هنا"
+
+    # استرجاع الخدمة
+    drive_service = get_drive_service()
+    youtube_service = get_youtube_service()
+
+    # استعراض الملفات داخل المجلد في Google Drive
+    results = drive_service.files().list(q=f"'{folder_id}' in parents", pageSize=10).execute()
+    files = results.get('files', [])
+
+    # تحميل الفيديوهات من Google Drive
+    for file in files:
+        file_id = file['id']
+        file_name = file['name']
+        print(f"Found video: {file_name}, downloading...")
+        try:
+            downloaded_video_path = download_video_from_drive(file_id, file_name, drive_service)
+            upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service, file_id)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
     main()
