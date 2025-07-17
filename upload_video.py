@@ -75,7 +75,7 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
 # تنفيذ العملية
 def main():
     # معرف المجلد في Google Drive
-    folder_id = 'your_drive_folder_id'  # ضع هنا معرف المجلد في Google Drive الذي يحتوي على الفيديوهات
+    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # ضع هنا معرف المجلد في Google Drive الذي يحتوي على الفيديوهات
 
     # إعداد Google Drive API
     drive_service = get_drive_service()
