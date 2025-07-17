@@ -2,6 +2,7 @@ import os
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapicl.http import MediaFileUpload  # تأكد من استيراده هنا
 
 # Get secrets from environment variables
 CLIENT_ID = os.getenv('YOUTUBE_CLIENT_ID')
@@ -26,7 +27,7 @@ credentials = Credentials.from_authorized_user_info(
 # Build the YouTube API client
 youtube = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
-# Upload video
+# Upload video function
 def upload_video(file_path, title, description, category_id=22):
     body = {
         'snippet': {
@@ -39,7 +40,7 @@ def upload_video(file_path, title, description, category_id=22):
         }
     }
 
-    media = MediaFileUpload(file_path, resumable=True)
+    media = MediaFileUpload(file_path, resumable=True)  # استخدام MediaFileUpload
     request = youtube.videos().insert(
         part="snippet,status",
         body=body,
@@ -48,5 +49,5 @@ def upload_video(file_path, title, description, category_id=22):
     response = request.execute()
     print(f"Video uploaded: {response['id']}")
 
-# استبدل الملف المطلوب رفعه مع التفاصيل
-upload_video('path/to/video.mp4', 'Test Video', 'This is a test video uploaded via GitHub Actions.')
+# تحديد المسار الصحيح للفيديو داخل المجلد "youtube-auto-uploa/videos"
+upload_video('youtube-auto-uploa/videos/test_video.mp4', 'Test Video', 'This is a test video uploaded via GitHub Actions.')
