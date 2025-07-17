@@ -4,6 +4,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.oauth2.credentials import Credentials
+from datetime import datetime, timedelta
 
 # إعداد تصاريح Google API من ملف الخدمة (service account)
 def get_drive_service():
@@ -50,8 +51,8 @@ def get_youtube_service():
     youtube_service = build('youtube', 'v3', credentials=credentials)
     return youtube_service
 
-# رفع الفيديو إلى YouTube
-def upload_video_to_youtube(file_path, title, description, youtube_service):
+# رفع الفيديو إلى YouTube مع جدولة
+def upload_video_to_youtube(file_path, title, description, scheduled_time, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
     request = youtube_service.videos().insert(
@@ -63,6 +64,7 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
             ),
             status=dict(
                 privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب الحاجة
+                publishAt=scheduled_time,  # تحديد وقت النشر
             ),
         ),
         media_body=media
@@ -105,26 +107,32 @@ def main():
         print("No files found in this folder.")
         return
 
-    # اختر الفيديو الأول من المجلد
-    video = files[0]
-    video_id = video['id']
-    video_name = video['name']
-
-    print(f"Found video: {video_name}, downloading...")
-
-    # التحقق إذا كان الفيديو قد تم تحميله بناءً على العنوان
-    if is_video_uploaded(video_name):
-        print(f"Video '{video_name}' has already been uploaded. Skipping.")
-        return
-
-    # تنزيل الفيديو من Google Drive
-    downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
+    # اختيار 3 فيديوهات من المجلد
+    videos_to_upload = files[:3]
 
     # إعداد YouTube API
     youtube_service = get_youtube_service()
 
-    # رفع الفيديو إلى YouTube
-    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
+    # جدولة الفيديوهات على YouTube
+    for i, video in enumerate(videos_to_upload):
+        video_id = video['id']
+        video_name = video['name']
+
+        print(f"Found video: {video_name}, downloading...")
+
+        # التحقق إذا كان الفيديو قد تم تحميله بناءً على العنوان
+        if is_video_uploaded(video_name):
+            print(f"Video '{video_name}' has already been uploaded. Skipping.")
+            continue
+
+        # تنزيل الفيديو من Google Drive
+        downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
+
+        # تحديد وقت الجدولة
+        scheduled_time = (datetime.utcnow() + timedelta(hours=12 * (i + 1))).isoformat() + 'Z'
+
+        # رفع الفيديو إلى YouTube مع الجدولة
+        upload_video_to_youtube(downloaded_video_path, video_name, 'This video was uploaded from Google Drive using script.', scheduled_time, youtube_service)
 
 if __name__ == '__main__':
     main()
