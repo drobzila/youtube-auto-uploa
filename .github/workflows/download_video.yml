@@ -1,10 +1,11 @@
-name: Download Files from Google Drive
+name: Download Google Drive Videos
 
 on:
-  workflow_dispatch:  # هذا يسمح بتشغيل السكربت يدويًا عبر GitHub Actions
+  schedule:
+    - cron: '0 7 * * *'  # يوميًا الساعة 7 صباحًا (بتوقيت UTC)
 
 jobs:
-  download:
+  download-videos:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,16 +15,14 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.x'
+        python-version: '3.8'
 
     - name: Install dependencies
       run: |
-        pip install --upgrade pip
-        pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+        pip install google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
-    - name: Run download script
+    - name: Run video download script
       env:
-        DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
-        DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
-        DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
-      run: python download_files.py
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}  # سر client_secrets.json
+      run: |
+        python download_video.py
