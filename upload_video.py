@@ -70,40 +70,37 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     )
 
     response = request.execute()
-    video_id = response['id']
-    print(f"Video uploaded successfully! Video ID: {video_id}")
+    print(f"Video uploaded successfully! Video ID: {response['id']}")
 
-    # إضافة العنوان إلى uploaded_videos.txt
-    add_video_title_to_uploaded(title)
+    # إضافة الفيديو إلى السجل بعد رفعه
+    add_uploaded_video_to_file(response['id'])
 
-# إضافة العنوان إلى uploaded_videos.txt
-def add_video_title_to_uploaded(title):
+    # حذف الفيديو من Google Drive بعد رفعه
+    delete_video_from_drive(file_id)
+
+# إضافة معرّف الفيديو إلى ملف السجل
+def add_uploaded_video_to_file(video_id):
+    with open("uploaded_videos.txt", "a") as file:
+        file.write(video_id + "\n")
+        file.flush()  # التأكد من الكتابة في الملف فورًا
+    print(f"Video ID {video_id} added to uploaded_videos.txt.")
+
+# حذف الفيديو من Google Drive
+def delete_video_from_drive(file_id):
+    drive_service = get_drive_service()
     try:
-        # إذا كان الملف غير موجود، سيتم إنشاؤه
-        if not os.path.exists("uploaded_videos.txt"):
-            open("uploaded_videos.txt", "w").close()
-
-        # التحقق إذا كان الفيديو قد تم رفعه مسبقًا
-        if not is_video_uploaded(title):
-            with open("uploaded_videos.txt", "a") as file:
-                file.write(f"{title}\n")
-            print(f"Video title '{title}' added to uploaded_videos.txt.")
-        else:
-            print(f"Video '{title}' has already been uploaded. Skipping upload.")
+        drive_service.files().delete(fileId=file_id).execute()
+        print(f"Video with ID {file_id} has been deleted from Google Drive.")
     except Exception as e:
-        print(f"Error while writing to file: {e}")
+        print(f"An error occurred while deleting the video: {e}")
 
-# فحص إذا كان الفيديو قد تم رفعه من قبل
-def is_video_uploaded(title):
-    try:
-        if os.path.exists("uploaded_videos.txt"):
-            with open("uploaded_videos.txt", "r") as file:
-                uploaded_titles = file.readlines()
-                return title + "\n" in uploaded_titles
-        return False
-    except Exception as e:
-        print(f"Error while reading file: {e}")
-        return False
+# التحقق مما إذا كان الفيديو قد تم رفعه
+def is_video_uploaded(video_id):
+    if os.path.exists("uploaded_videos.txt"):
+        with open("uploaded_videos.txt", "r") as file:
+            uploaded_videos = file.readlines()
+            return video_id + "\n" in uploaded_videos
+    return False
 
 # تنفيذ العملية
 def main():
@@ -128,6 +125,11 @@ def main():
 
     print(f"Found video: {video_name}, downloading...")
 
+    # التحقق إذا كان الفيديو قد تم تحميله
+    if is_video_uploaded(video_id):
+        print(f"Video {video_name} has already been uploaded. Skipping.")
+        return
+
     # تنزيل الفيديو من Google Drive
     downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
 
@@ -135,7 +137,7 @@ def main():
     youtube_service = get_youtube_service()
 
     # رفع الفيديو إلى YouTube
-    upload_video_to_youtube(downloaded_video_path, video_name, 'This video was uploaded from Google Drive using script.', youtube_service)
+    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
 
 if __name__ == '__main__':
     main()
