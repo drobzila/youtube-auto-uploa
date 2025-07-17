@@ -1,17 +1,44 @@
 import os
+import io
 import google.auth
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-# إعداد المسار للفيديو باستخدام os
-def upload_video(file_path, title, description):
-    # التأكد من أن ملف الفيديو موجود
-    if not os.path.exists(file_path):
-        print(f"Error: The video file at {file_path} does not exist.")
-        return
+# إعداد تصاريح Google API من ملف الخدمة (service account)
+def get_drive_service():
+    credentials = ServiceAccountCredentials.from_service_account_info(
+        {
+            'type': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_TYPE'),
+            'project_id': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_PROJECT_ID'),
+            'private_key_id': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_PRIVATE_KEY_ID'),
+            'private_key': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_PRIVATE_KEY'),
+            'client_email': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_CLIENT_EMAIL'),
+            'client_id': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_CLIENT_ID'),
+            'auth_uri': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_AUTH_URI'),
+            'token_uri': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_TOKEN_URI'),
+            'auth_provider_x509_cert_url': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_AUTH_PROVIDER_X509_CERT_URL'),
+            'client_x509_cert_url': os.getenv('GOOGLE_APPLICATION_CREDENTIALS_CLIENT_X509_CERT_URL')
+        },
+        scopes=["https://www.googleapis.com/auth/drive.readonly", "https://www.googleapis.com/auth/youtube.upload"]
+    )
+    drive_service = build('drive', 'v3', credentials=credentials)
+    return drive_service
 
-    # إعداد التصريحات باستخدام refresh token
+# تحميل الفيديو من Google Drive
+def download_video_from_drive(file_id, file_name, drive_service):
+    request = drive_service.files().get_media(fileId=file_id)
+    fh = io.FileIO(file_name, 'wb')
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        print(f"Download {int(status.progress() * 100)}%.")
+    return file_name
+
+# إعداد التصريحات من Google API
+def get_youtube_service():
     credentials = Credentials.from_authorized_user_info(
         {
             'client_id': os.getenv('YOUTUBE_CLIENT_ID'),
@@ -20,15 +47,14 @@ def upload_video(file_path, title, description):
         },
         scopes=["https://www.googleapis.com/auth/youtube.upload"]
     )
+    youtube_service = build('youtube', 'v3', credentials=credentials)
+    return youtube_service
 
-    # بناء خدمة YouTube API
-    youtube = build('youtube', 'v3', credentials=credentials)
-
-    # إعداد ملف الفيديو
+# رفع الفيديو إلى YouTube
+def upload_video_to_youtube(file_path, title, description, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
-    # تحميل الفيديو إلى YouTube
-    request = youtube.videos().insert(
+    request = youtube_service.videos().insert(
         part="snippet,status",
         body=dict(
             snippet=dict(
@@ -42,14 +68,40 @@ def upload_video(file_path, title, description):
         media_body=media
     )
 
-    # إجراء تحميل الفيديو
     response = request.execute()
-
     print(f"Video uploaded successfully! Video ID: {response['id']}")
 
+# تنفيذ العملية
+def main():
+    # معرف المجلد في Google Drive
+    folder_id = 'your_drive_folder_id'  # ضع هنا معرف المجلد في Google Drive الذي يحتوي على الفيديوهات
 
-# المسار الكامل إلى الفيديو باستخدام os
-video_path = os.path.join(os.getcwd(), 'videos', 'test_video.mp4')
+    # إعداد Google Drive API
+    drive_service = get_drive_service()
 
-# قم بتشغيل رفع الفيديو
-upload_video(video_path, 'Test Video', 'This is a test video uploaded via GitHub Actions.')
+    # استرداد الملفات من المجلد
+    results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
+    files = results.get('files', [])
+
+    if not files:
+        print("No files found in this folder.")
+        return
+
+    # اختر الفيديو الأول من المجلد
+    video = files[0]
+    video_id = video['id']
+    video_name = video['name']
+
+    print(f"Found video: {video_name}, downloading...")
+
+    # تنزيل الفيديو من Google Drive
+    downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
+
+    # إعداد YouTube API
+    youtube_service = get_youtube_service()
+
+    # رفع الفيديو إلى YouTube
+    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
+
+if __name__ == '__main__':
+    main()
