@@ -99,7 +99,7 @@ def main():
 
     # قائمة الفيديوهات المحدثة
     uploaded_video_path = "اسمعها كأنها أول مرة.mp4"
-    file_id = "ID_الفيديو_من_Google_Drive"  # تأكد من استخدام ID الصحيح للفيديو
+    file_id = "1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ"  # تأكد من استخدام ID الصحيح للفيديو
     
     # تنزيل الفيديو من Drive
     print(f"Found video: {uploaded_video_path}, downloading...")
