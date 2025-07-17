@@ -6,7 +6,7 @@ import os
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
 # مسار ملف الـ OAuth
-CLIENT_SECRET_FILE = os.getenv("YOUTUBE_CLIENT_SECRET_PATH")  # تأكد من إضافة المسار من البيئة أو المتغيرات
+CLIENT_SECRET_FILE = os.getenv("YOUTUBE_CLIENT20SECRET")  # تأكد من إضافة المسار من البيئة أو المتغيرات
 
 # إنشاء خدمة YouTube
 def get_authenticated_service():
