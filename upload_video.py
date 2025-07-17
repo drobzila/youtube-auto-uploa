@@ -1,52 +1,55 @@
 import os
-import io
 import google.auth
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
-from google.oauth2 import service_account
+from googleapiclient.http import MediaFileUpload
+from google.oauth2.credentials import Credentials
 
-# تحميل ملف secrets من السر (GOOGLE_APPLICATION_CREDENTIALS) الموجود في GitHub
-SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # تحميل السر من GitHub Secrets
+# إعداد المسار للفيديو باستخدام os
+def upload_video(file_path, title, description):
+    # التأكد من أن ملف الفيديو موجود
+    if not os.path.exists(file_path):
+        print(f"Error: The video file at {file_path} does not exist.")
+        return
 
-if not SERVICE_ACCOUNT_FILE:
-    raise ValueError("The GOOGLE_APPLICATION_CREDENTIALS secret is not set properly.")
+    # إعداد التصريحات باستخدام refresh token
+    credentials = Credentials.from_authorized_user_info(
+        {
+            'client_id': os.getenv('YOUTUBE_CLIENT_ID'),
+            'client_secret': os.getenv('YOUTUBE_CLIENT_SECRET'),
+            'refresh_token': os.getenv('YOUTUBE_REFRESH_TOKEN'),
+        },
+        scopes=["https://www.googleapis.com/auth/youtube.upload"]
+    )
 
-# إعداد الأذونات والخدمة
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+    # بناء خدمة YouTube API
+    youtube = build('youtube', 'v3', credentials=credentials)
 
-# المصادقة باستخدام Service Account
-credentials = service_account.Credentials.from_service_account_info(
-    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    # إعداد ملف الفيديو
+    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
-# بناء الخدمة الخاصة بـ Google Drive API
-service = build('drive', 'v3', credentials=credentials)
+    # تحميل الفيديو إلى YouTube
+    request = youtube.videos().insert(
+        part="snippet,status",
+        body=dict(
+            snippet=dict(
+                title=title,
+                description=description,
+            ),
+            status=dict(
+                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
+            ),
+        ),
+        media_body=media
+    )
 
-# دالة لتحميل الملفات من Google Drive
-def download_file(file_id, file_name):
-    request = service.files().get_media(fileId=file_id)
-    fh = io.FileIO(file_name, 'wb')
-    downloader = MediaIoBaseDownload(fh, request)
-    
-    done = False
-    while done is False:
-        status, done = downloader.next_chunk()
-        print(f"Download {int(status.progress() * 100)}%.")
-    print(f"File {file_name} downloaded successfully.")
+    # إجراء تحميل الفيديو
+    response = request.execute()
 
-# الحصول على جميع الملفات من مجلد معين في Google Drive
-folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # استبدل بهذا مع الـ Folder ID الخاص بك
-query = f"'{folder_id}' in parents and mimeType='video/mp4'"
+    print(f"Video uploaded successfully! Video ID: {response['id']}")
 
-# البحث عن الملفات
-results = service.files().list(q=query, fields="files(id, name)").execute()
-items = results.get('files', [])
 
-if not items:
-    print('No files found.')
-else:
-    # تحميل أول 3 ملفات فقط من القائمة
-    for item in items[:3]:
-        file_id = item['id']
-        file_name = item['name']
-        print(f"Downloading file: {file_name}")
-        download_file(file_id, file_name)
+# المسار الكامل إلى الفيديو باستخدام os
+video_path = os.path.join(os.getcwd(), 'videos', 'test_video.mp4')
+
+# قم بتشغيل رفع الفيديو
+upload_video(video_path, 'Test Video', 'This is a test video uploaded via GitHub Actions.')
