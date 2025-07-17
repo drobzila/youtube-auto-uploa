@@ -73,17 +73,33 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     video_id = response['id']
     print(f"Video uploaded successfully! Video ID: {video_id}")
 
-    # إضافة Video ID إلى uploaded_videos.txt
-    add_video_id_to_uploaded(video_id)
+    # إضافة العنوان إلى uploaded_videos.txt
+    add_video_title_to_uploaded(title)
 
-# إضافة Video ID إلى uploaded_videos.txt
-def add_video_id_to_uploaded(file_id):
+# إضافة العنوان إلى uploaded_videos.txt
+def add_video_title_to_uploaded(title):
     try:
-        with open("uploaded_videos.txt", "a") as file:
-            file.write(f"{file_id}\n")
-        print(f"Video ID {file_id} added to uploaded_videos.txt.")
+        # فحص إذا كان العنوان موجودًا بالفعل في الملف
+        if not is_video_uploaded(title):
+            with open("uploaded_videos.txt", "a") as file:
+                file.write(f"{title}\n")
+            print(f"Video title '{title}' added to uploaded_videos.txt.")
+        else:
+            print(f"Video '{title}' has already been uploaded. Skipping upload.")
     except Exception as e:
         print(f"Error while writing to file: {e}")
+
+# فحص إذا كان الفيديو قد تم رفعه من قبل
+def is_video_uploaded(title):
+    try:
+        if os.path.exists("uploaded_videos.txt"):
+            with open("uploaded_videos.txt", "r") as file:
+                uploaded_titles = file.readlines()
+                return title + "\n" in uploaded_titles
+        return False
+    except Exception as e:
+        print(f"Error while reading file: {e}")
+        return False
 
 # تنفيذ العملية
 def main():
@@ -115,7 +131,7 @@ def main():
     youtube_service = get_youtube_service()
 
     # رفع الفيديو إلى YouTube
-    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
+    upload_video_to_youtube(downloaded_video_path, video_name, 'This video was uploaded from Google Drive using script.', youtube_service)
 
 if __name__ == '__main__':
     main()
