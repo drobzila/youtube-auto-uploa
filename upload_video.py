@@ -6,13 +6,16 @@ from googleapiclient.http import MediaIoBaseDownload
 from google.oauth2 import service_account
 
 # تحميل ملف secrets من السر (GOOGLE_APPLICATION_CREDENTIALS) الموجود في GitHub
-SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # تأكد أنك قمت بإضافة هذا السر في GitHub
+SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # تحميل السر من GitHub Secrets
+
+if not SERVICE_ACCOUNT_FILE:
+    raise ValueError("The GOOGLE_APPLICATION_CREDENTIALS secret is not set properly.")
 
 # إعداد الأذونات والخدمة
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
 # المصادقة باستخدام Service Account
-credentials = service_account.Credentials.from_service_account_file(
+credentials = service_account.Credentials.from_service_account_info(
     SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 
 # بناء الخدمة الخاصة بـ Google Drive API
