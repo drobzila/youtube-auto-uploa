@@ -7,7 +7,7 @@ from googleapiclient.discovery import build
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
 # استرجاع الـ client_secret من البيئة
-CLIENT_SECRET_FILE = json.loads(os.getenv('YOUTUBE_CLIENT_SECRET'))  # استخدام Secret من GitHub
+CLIENT_SECRET_FILE = json.loads(os.getenv('YOUTUBE_CLIENT20SECRET'))  # استخدام Secret من GitHub
 
 # إنشاء خدمة YouTube
 def get_authenticated_service():
