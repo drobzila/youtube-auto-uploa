@@ -1,36 +1,32 @@
 name: Upload Video to YouTube
 
 on:
-  schedule:
-    # تشغيل السكربت يوميًا الساعة 7:00
-    - cron: '0 7 * * *'
-  workflow_dispatch:
+  push:
+    branches:
+      - main  # أو أي فرع آخر ترغب في مراقبته
+  workflow_dispatch:  # لتشغيل الـ workflow يدويًا إذا أردت
 
 jobs:
-  upload_video:
+  upload:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
 
-      - name: Upload Video
-        env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
-          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
-          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
-        run: |
-          python upload_video.py
+    - name: Upload video to YouTube
+      run: python upload_video.py
+      env:
+        YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+        YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+        YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
