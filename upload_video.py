@@ -1,60 +1,55 @@
 import os
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+import google.auth
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload  # استيراد MediaFileUpload بشكل صحيح
+from googleapiclient.http import MediaFileUpload
+from google.oauth2.credentials import Credentials
 
-# الحصول على معلومات التوثيق من البيئة
-CLIENT_ID = os.getenv('YOUTUBE_CLIENT_ID')
-CLIENT_SECRET = os.getenv('YOUTUBE_CLIENT_SECRET')
-REFRESH_TOKEN = os.getenv('YOUTUBE_REFRESH_TOKEN')
+# إعداد المسار للفيديو باستخدام os
+def upload_video(file_path, title, description):
+    # التأكد من أن ملف الفيديو موجود
+    if not os.path.exists(file_path):
+        print(f"Error: The video file at {file_path} does not exist.")
+        return
 
-# إعدادات API
-SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
-API_SERVICE_NAME = 'youtube'
-API_VERSION = 'v3'
-
-# تحديث بيانات التوثيق باستخدام Refresh Token
-credentials = Credentials.from_authorized_user_info(
-    info={
-        'client_id': CLIENT_ID,
-        'client_secret': CLIENT_SECRET,
-        'refresh_token': REFRESH_TOKEN,
-    },
-    scopes=SCOPES,
-)
-
-# بناء عميل YouTube API باستخدام بيانات التوثيق
-youtube = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
-
-# دالة رفع الفيديو
-def upload_video(file_path, title, description, category_id=22):
-    body = {
-        'snippet': {
-            'title': title,
-            'description': description,
-            'categoryId': category_id
+    # إعداد التصريحات باستخدام refresh token
+    credentials = Credentials.from_authorized_user_info(
+        {
+            'client_id': os.getenv('YOUTUBE_CLIENT_ID'),
+            'client_secret': os.getenv('YOUTUBE_CLIENT_SECRET'),
+            'refresh_token': os.getenv('YOUTUBE_REFRESH_TOKEN'),
         },
-        'status': {
-            'privacyStatus': 'private'  # يمكن تغييرها إلى "public" أو "unlisted"
-        }
-    }
+        scopes=["https://www.googleapis.com/auth/youtube.upload"]
+    )
 
-    # تحميل الفيديو باستخدام MediaFileUpload
-    media = MediaFileUpload(file_path, resumable=True)
-    
-    # إجراء طلب لرفع الفيديو إلى YouTube
+    # بناء خدمة YouTube API
+    youtube = build('youtube', 'v3', credentials=credentials)
+
+    # إعداد ملف الفيديو
+    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
+
+    # تحميل الفيديو إلى YouTube
     request = youtube.videos().insert(
         part="snippet,status",
-        body=body,
+        body=dict(
+            snippet=dict(
+                title=title,
+                description=description,
+            ),
+            status=dict(
+                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
+            ),
+        ),
         media_body=media
     )
 
-    # تنفيذ الطلب
+    # إجراء تحميل الفيديو
     response = request.execute()
-    
-    # طباعة ID الفيديو الذي تم رفعه
+
     print(f"Video uploaded successfully! Video ID: {response['id']}")
 
-# تحديد المسار الصحيح للفيديو داخل المجلد "youtube-auto-uploa/videos"
-upload_video('youtube-auto-uploa/videos/test_video.mp4', 'Test Video', 'This is a test video uploaded via GitHub Actions.')
+
+# المسار الكامل إلى الفيديو باستخدام os
+video_path = os.path.join(os.getcwd(), 'videos', 'test_video.mp4')
+
+# قم بتشغيل رفع الفيديو
+upload_video(video_path, 'Test Video', 'This is a test video uploaded via GitHub Actions.')
