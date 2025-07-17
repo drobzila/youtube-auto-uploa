@@ -28,4 +28,4 @@ jobs:
       env:
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT20SECRET }}  # استخدم الـ Secret المخزن
       run: |
-        python upload video.py
+        python "upload video.py"  # استخدم المسافة في اسم الملف
