@@ -29,14 +29,17 @@ def get_drive_service():
 
 # تحميل الفيديو من Google Drive
 def download_video_from_drive(file_id, file_name, drive_service):
-    request = drive_service.files().get_media(fileId=file_id)
-    fh = io.FileIO(file_name, 'wb')
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-    while done is False:
-        status, done = downloader.next_chunk()
-        print(f"Download {int(status.progress() * 100)}%.")
-    return file_name
+    try:
+        request = drive_service.files().get_media(fileId=file_id)
+        fh = io.FileIO(file_name, 'wb')
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+            print(f"Download {int(status.progress() * 100)}%.")
+        return file_name
+    except Exception as e:
+        print(f"An error occurred while downloading the video: {e}")
 
 # إعداد التصريحات من Google API
 def get_youtube_service():
