@@ -1,9 +1,7 @@
 import os
 import io
-import google.auth
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
-from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 # إعداد تصاريح Google API من ملف الخدمة (service account)
@@ -27,20 +25,23 @@ def get_drive_service():
     drive_service = build('drive', 'v3', credentials=credentials)
     return drive_service
 
-# تحميل الفيديو من Google Drive
-def download_video_from_drive(file_id, file_name, drive_service):
-    try:
-        # تحقق من نوع الملف (فيديو)
-        file = drive_service.files().get(fileId=file_id).execute()
-        mime_type = file['mimeType']
+# تنزيل الفيديو من Google Drive
+def download_video_from_drive(file_id, drive_service):
+    results = drive_service.files().list(q=f"'{file_id}' in parents", pageSize=10).execute()
+    items = results.get('files', [])
+    
+    if not items:
+        print('No files found in this folder.')
+        return None
 
-        # تحقق إذا كان الملف مجلدًا أو ليس فيديو
-        if mime_type == 'application/vnd.google-apps.folder':
-            print(f"The file is a folder, not a video.")
-            return None
-
-        # إذا كان الملف فيديو، حمله بشكل مباشر
-        if 'video' in mime_type:
+    # تصفح الملفات في المجلد
+    for item in items:
+        file_name = item['name']
+        file_mime_type = item['mimeType']
+        
+        # التأكد من أن الملف هو فيديو
+        if 'video' in file_mime_type:
+            file_id = item['id']
             request = drive_service.files().get_media(fileId=file_id)
             fh = io.FileIO(file_name, 'wb')
             downloader = MediaIoBaseDownload(fh, request)
@@ -49,14 +50,9 @@ def download_video_from_drive(file_id, file_name, drive_service):
                 status, done = downloader.next_chunk()
                 print(f"Download {int(status.progress() * 100)}%.")
             return file_name
-        else:
-            print(f"The file is not a video. MIME type: {mime_type}")
-            return None  # إذا لم يكن فيديو، يرجع None
-    except Exception as e:
-        print(f"An error occurred while downloading the video: {e}")
-        return None
+    return None
 
-# إعداد التصريحات من Google API
+# إعداد تصاريح YouTube API
 def get_youtube_service():
     credentials = Credentials.from_authorized_user_info(
         {
@@ -72,44 +68,35 @@ def get_youtube_service():
 # رفع الفيديو إلى YouTube
 def upload_video_to_youtube(file_path, title, description, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
+
     request = youtube_service.videos().insert(
         part="snippet,status",
-        body={
-            "snippet": {
-                "title": title,
-                "description": description,
-                "tags": ["test", "video", "upload"]
-            },
-            "status": {
-                "privacyStatus": "public"
-            }
-        },
-        media_body=media
+        body=dict(
+            snippet=dict(
+                title=title,
+                description=description,
+                tags=["example", "video"],
+            ),
+            status=dict(
+                privacyStatus="public",  # يمكن تغييره إلى "private" أو "unlisted"
+            ),
+        ),
+        media_body=media,
     )
+
     response = request.execute()
-    print(f"Video uploaded successfully. Video ID: {response['id']}")
-    return response['id']
+    print(f"Video uploaded: {response['id']}")
 
-# إضافة الفيديو المرفوع إلى ملف تم حفظه سابقًا
-def add_uploaded_video_to_file(video_id):
-    with open('uploaded_videos.txt', 'a') as file:
-        file.write(f"{video_id}\n")
-
-# الدالة الرئيسية
+# تنفيذ الكود
 def main():
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
-
-    file_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # معرّف الملف من Google Drive
-    downloaded_video_path = "اسمعها كأنها أول مرة.mp4"
     
-    # تنزيل الفيديو من Google Drive
-    downloaded_video_path = download_video_from_drive(file_id, downloaded_video_path, drive_service)
+    folder_id = "معرف المجلد هنا"
+    video_file = download_video_from_drive(folder_id, drive_service)
+    
+    if video_file:
+        upload_video_to_youtube(video_file, 'Video Title', 'Video Description', youtube_service)
 
-    if downloaded_video_path:
-        upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
-    else:
-        print("Download failed, skipping upload.")
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
