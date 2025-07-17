@@ -1,0 +1,34 @@
+name: Upload Video to YouTube
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'videos/**'  # سيعمل عند رفع أي فيديو في مجلد الفيديوهات
+
+jobs:
+  upload_video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install required libraries
+        run: |
+          pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+      - name: Upload video to YouTube
+        run: |
+          python upload_video.py  # تشغيل السكربت لرفع الفيديو
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          VIDEO_FILE_PATH: './videos/test_video.mp4'  # مسار الفيديو الذي تم رفعه
