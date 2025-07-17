@@ -45,13 +45,14 @@ def get_last_10_shorts_videos(channel_id, youtube_service):
     request = youtube_service.search().list(
         part="snippet",
         channelId=channel_id,
-        maxResults=10,
+        maxResults=10,  # أو العدد المطلوب
         type="video",
-        order="date"  # ترتيب النتائج حسب الأحدث
+        videoDuration="short",  # فقط الفيديوهات القصيرة
     )
     response = request.execute()
 
-    videos = response.get("items", [])
+    for item in response.get("items", []):
+        print(f"Title: {item['snippet']['title']}, Video ID: {item['id']['videoId']}")
     
     if not videos:
         print("No videos found.")
@@ -165,7 +166,7 @@ def main():
     downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
 
     # إعداد YouTube API
-    youtube_service = get_youtube_service()
+    youtube_service = build('youtube', 'v3', credentials=credentials)
 
     # رفع الفيديو إلى YouTube
     upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
