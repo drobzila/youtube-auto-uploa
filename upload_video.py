@@ -3,6 +3,8 @@ import io
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+from google.oauth2.credentials import Credentials  # إضافة الاستيراد هنا
+from google.auth.transport.requests import Request  # إضافة الاستيراد هنا
 
 # إعداد تصاريح Google API من ملف الخدمة (service account)
 def get_drive_service():
