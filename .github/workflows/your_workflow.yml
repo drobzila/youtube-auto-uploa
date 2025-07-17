@@ -2,21 +2,29 @@ name: Run Python Script Every Minute
 
 on:
   schedule:
-    - cron: '* * * * *'  # يشغل السكربت كل دقيقة
-  workflow_dispatch:  # يسمح بتشغيل السكربت يدويًا أيضًا
+    - cron: '* * * * *'  # تشغيل السكربت كل دقيقة
+  workflow_dispatch:  # يسمح بتشغيله يدويًا أيضًا
 
 jobs:
   run-python-script:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2  # سحب الكود من المستودع
 
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.x'  # تأكد من أنك تستخدم Python 3
 
-      - name: Run script
+      - name: Run Python script
         run: |
-          python script.py  # تأكد من أن السكربت هو الاسم الصحيح
+          python script.py  # تنفيذ السكربت
+
+      - name: Commit and push log changes
+        run: |
+          git config --global user.name "GitHub Actions"  # إعداد اسم المستخدم
+          git config --global user.email "actions@github.com"  # إعداد البريد الإلكتروني
+          git add log.txt  # إضافة ملف السجل إلى Git
+          git commit -m "Update log with Hello, World!"  # إضافة التغيير (commit)
+          git push  # رفع التغييرات إلى المستودع
