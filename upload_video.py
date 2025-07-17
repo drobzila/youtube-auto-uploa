@@ -79,7 +79,11 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
 # إضافة العنوان إلى uploaded_videos.txt
 def add_video_title_to_uploaded(title):
     try:
-        # فحص إذا كان العنوان موجودًا بالفعل في الملف
+        # إذا كان الملف غير موجود، سيتم إنشاؤه
+        if not os.path.exists("uploaded_videos.txt"):
+            open("uploaded_videos.txt", "w").close()
+
+        # التحقق إذا كان الفيديو قد تم رفعه مسبقًا
         if not is_video_uploaded(title):
             with open("uploaded_videos.txt", "a") as file:
                 file.write(f"{title}\n")
