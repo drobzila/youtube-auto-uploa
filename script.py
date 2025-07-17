@@ -1,9 +1,13 @@
-# script.py
+import time
 
-log_file = 'log.txt'  # اسم الملف الذي سيتم إضافة السجلات فيه
+log_file = 'log.txt'
 
-# كتابة النص في الملف
-with open(log_file, 'a') as f:  # فتح الملف في وضع الإضافة (append)
-    f.write("Hello, World!\n")  # كتابة "Hello, World!" في الملف
+# سيعمل السكربت فقط لمدة دقيقة واحدة ويدخل في حلقة يكتب فيها "Hello, World!" كل 5 ثوانٍ
+end_time = time.time() + 60  # تحديد الوقت لإنهاء السكربت بعد دقيقة واحدة
 
-print("Hello, World!")  # الطباعة في GitHub Actions لعرضها في السجلات
+while time.time() < end_time:
+    with open(log_file, 'a') as f:
+        f.write("Hello, World!\n")
+    print("Hello, World!")  # الطباعة في الـ console
+
+    time.sleep(5)  # الانتظار لمدة 5 ثوانٍ قبل الكتابة مرة أخرى
