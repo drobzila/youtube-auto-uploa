@@ -30,17 +30,26 @@ def get_drive_service():
 # تحميل الفيديو من Google Drive
 def download_video_from_drive(file_id, file_name, drive_service):
     try:
-        request = drive_service.files().get_media(fileId=file_id)
-        fh = io.FileIO(file_name, 'wb')
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while done is False:
-            status, done = downloader.next_chunk()
-            print(f"Download {int(status.progress() * 100)}%.")
-        return file_name
+        # تحقق من نوع الملف (فيديو)
+        file = drive_service.files().get(fileId=file_id).execute()
+        mime_type = file['mimeType']
+
+        # إذا كان الملف فيديو، حمله بشكل مباشر
+        if 'video' in mime_type:
+            request = drive_service.files().get_media(fileId=file_id)
+            fh = io.FileIO(file_name, 'wb')
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+                print(f"Download {int(status.progress() * 100)}%.")
+            return file_name
+        else:
+            print(f"The file is not a video. MIME type: {mime_type}")
+            return None  # إذا لم يكن فيديو، يرجع None
     except Exception as e:
         print(f"An error occurred while downloading the video: {e}")
-        return None  # إرجاع None إذا حدث خطأ
+        return None
 
 # إعداد التصريحات من Google API
 def get_youtube_service():
@@ -57,10 +66,6 @@ def get_youtube_service():
 
 # رفع الفيديو إلى YouTube
 def upload_video_to_youtube(file_path, title, description, youtube_service):
-    if not file_path:  # إذا كان الملف غير موجود
-        print("No file to upload.")
-        return
-
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
     request = youtube_service.videos().insert(
@@ -86,39 +91,34 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     # حذف الفيديو من Google Drive بعد رفعه إلى YouTube
     delete_video_from_drive(file_id)
 
-# إضافة معرّف الفيديو إلى ملف السجل
+# إضافة معرّف الفيديو المرفوع إلى ملف تم حفظه سابقاً
 def add_uploaded_video_to_file(video_id):
-    with open("uploaded_videos.txt", "a") as file:
-        file.write(video_id + "\n")
-        file.flush()  # التأكد من الكتابة في الملف فورًا
-    print(f"Video ID {video_id} added to uploaded_videos.txt.")
+    with open('uploaded_videos.txt', 'a') as file:
+        file.write(f"{video_id}\n")
 
-# حذف الفيديو من Google Drive
+# حذف الفيديو من Google Drive بعد رفعه إلى YouTube
 def delete_video_from_drive(file_id):
     try:
         drive_service.files().delete(fileId=file_id).execute()
-        print(f"Video with ID {file_id} deleted from Google Drive.")
+        print(f"Video {file_id} deleted from Google Drive after upload.")
     except Exception as e:
         print(f"An error occurred while deleting the video: {e}")
 
+# الدالة الرئيسية
 def main():
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
 
-    # قائمة الفيديوهات المحدثة
-    uploaded_video_path = "اسمعها كأنها أول مرة.mp4"
-    file_id = "1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ"  # تأكد من استخدام ID الصحيح للفيديو
+    file_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # قم بإدخال معرّف الملف
+    downloaded_video_path = "اسمعها كأنها أول مرة.mp4"
     
-    # تنزيل الفيديو من Drive
-    print(f"Found video: {uploaded_video_path}, downloading...")
-    downloaded_video_path = download_video_from_drive(file_id, uploaded_video_path, drive_service)
-    
+    # تنزيل الفيديو من Google Drive
+    downloaded_video_path = download_video_from_drive(file_id, downloaded_video_path, drive_service)
+
     if downloaded_video_path:
-        # رفع الفيديو إلى YouTube
         upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
     else:
         print("Download failed, skipping upload.")
 
-# بدء العملية
 if __name__ == '__main__':
     main()
