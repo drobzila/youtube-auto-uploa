@@ -1,17 +1,16 @@
-import os
-import json
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+import os
 
 # تحديد نطاق الوصول
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
-# استرجاع الـ client_secret من البيئة
-CLIENT_SECRET_FILE = json.loads(os.getenv('YOUTUBE_CLIENT20SECRET'))  # استخدام Secret من GitHub
+# مسار ملف الـ OAuth
+CLIENT_SECRET_FILE = r'C:\Users\الاخوة ال4\Pictures\Music\Desktop\youtube-auto-publisher-465723-7cd44640375f.json'
 
 # إنشاء خدمة YouTube
 def get_authenticated_service():
-    flow = InstalledAppFlow.from_client_config(
+    flow = InstalledAppFlow.from_client_secrets_file(
         CLIENT_SECRET_FILE, SCOPES
     )
     credentials = flow.run_local_server()  # فتح نافذة متصفح لتسجيل الدخول
