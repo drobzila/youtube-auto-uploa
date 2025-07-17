@@ -5,8 +5,8 @@ import os
 # تحديد نطاق الوصول
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
-# مسار ملف الـ OAuth
-CLIENT_SECRET_FILE = r'C:\Users\الاخوة ال4\Pictures\Music\Desktop\youtube-auto-publisher-465723-7cd44640375f.json'
+# مسار ملف الـ OAuth من البيئة
+CLIENT_SECRET_FILE = os.getenv("YOUTUBE_CLIENT_SECRET_PATH")  # قم بالحصول على المسار من البيئة
 
 # إنشاء خدمة YouTube
 def get_authenticated_service():
