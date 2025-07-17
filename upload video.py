@@ -18,12 +18,12 @@ def get_authenticated_service():
 
 # الحصول على آخر 10 فيديوهات شورت من قناة يوتيوب
 def get_last_10_shorts_videos(channel_id, youtube_service):
-    request = youtube_service.search().list(
+    # استخدام YouTube Data API v3 بشكل صحيح
+    request = youtube_service.videos().list(
         part="snippet",
-        channelId=channel_id,
+        chart="mostPopular",
+        regionCode="US",  # تخصيص هذا للمنطقة التي ترغب في تحديدها
         maxResults=10,
-        type="video",
-        order="date"  # ترتيب النتائج حسب الأحدث
     )
     response = request.execute()
 
@@ -36,7 +36,7 @@ def get_last_10_shorts_videos(channel_id, youtube_service):
     print("Last 10 Shorts videos:")
     shorts_videos = []
     for video in videos:
-        video_id = video['id']['videoId']
+        video_id = video['id']
         video_details = youtube_service.videos().list(
             part="contentDetails",
             id=video_id
