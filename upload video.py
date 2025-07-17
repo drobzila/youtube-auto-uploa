@@ -5,8 +5,8 @@ import os
 # تحديد نطاق الوصول
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
-# مسار ملف الـ OAuth من البيئة
-CLIENT_SECRET_FILE = os.getenv("YOUTUBE_CLIENT_SECRET_PATH")  # قم بالحصول على المسار من البيئة
+# مسار ملف الـ OAuth
+CLIENT_SECRET_FILE = os.getenv("YOUTUBE_CLIENT_SECRET_PATH")  # تأكد من إضافة المسار من البيئة أو المتغيرات
 
 # إنشاء خدمة YouTube
 def get_authenticated_service():
@@ -18,13 +18,14 @@ def get_authenticated_service():
 
 # الحصول على آخر 10 فيديوهات شورت من قناة يوتيوب
 def get_last_10_shorts_videos(channel_id, youtube_service):
-    # استخدام YouTube Data API v3 بشكل صحيح
+    # استخدم videos().list للبحث عن الفيديوهات
     request = youtube_service.videos().list(
-        part="snippet",
-        chart="mostPopular",
-        regionCode="US",  # تخصيص هذا للمنطقة التي ترغب في تحديدها
-        maxResults=10,
+        part="snippet,contentDetails",
+        channelId=channel_id,
+        maxResults=10,  # الحد الأقصى للنتائج
+        order="date"  # ترتيب الفيديوهات حسب التاريخ
     )
+    
     response = request.execute()
 
     videos = response.get("items", [])
