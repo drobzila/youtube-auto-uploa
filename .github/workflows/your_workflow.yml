@@ -1,37 +1,22 @@
-name: Upload Video to YouTube
+name: Run Python Script Every Minute
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '**/*.mp4'  # يمكنك تحديد الملفات التي تريد رفعها (مثلاً: *.mp4)
+  schedule:
+    - cron: '* * * * *'  # يشغل السكربت كل دقيقة
+  workflow_dispatch:  # يسمح بتشغيل السكربت يدويًا أيضًا
 
 jobs:
-  upload_video:
+  run-python-script:
     runs-on: ubuntu-latest
-
     steps:
-      # إعداد بيئة Python
+      - name: Check out code
+        uses: actions/checkout@v2
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: '3.x'
 
-      # تثبيت المكتبات المطلوبة
-      - name: Install dependencies
+      - name: Run script
         run: |
-          pip install --upgrade pip
-          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
-
-      # إضافة بيانات الاعتماد الخاصة بـ Google API إلى البيئة
-      - name: Set Google API credentials
-        run: echo "YOUTUBE_SERVICE_ACCOUNT_JSON=${{ secrets.YOUTUBE_SERVICE_ACCOUNT_JSON }}" >> $GITHUB_ENV
-
-      # تنزيل السكربت وتشغيله
-      - name: Download video from Google Drive and upload to YouTube
-        run: |
-          # التأكد من أن الفيديو قد تم رفعه إلى Google Drive من قبل
-          python upload_videos.py
-        env:
-          YOUTUBE_SERVICE_ACCOUNT_JSON: ${{ secrets.YOUTUBE_SERVICE_ACCOUNT_JSON }}
+          python script.py  # تأكد من أن السكربت هو الاسم الصحيح
