@@ -13,7 +13,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 print("GOOGLE_DRIVE_CREDENTIALS =", os.environ.get("GOOGLE_DRIVE_CREDENTIALS"))
 print("YOUTUBE_CLIENT_SECRETS =", os.environ.get("YOUTUBE_CLIENT_SECRETS"))
 
-# تحميل بيانات الاعتماد من ملفات JSON الموجودة في المسارات المحددة في المتغيرات البيئية
+# تحميل بيانات الاعتماد من ملفات JSON الموجودة في المتغيرات البيئية
 def load_credentials_from_env():
     google_drive_credentials_path = os.environ.get('GOOGLE_DRIVE_CREDENTIALS')
     youtube_client_secrets_path = os.environ.get('YOUTUBE_CLIENT_SECRETS')
@@ -44,18 +44,21 @@ def authenticate_youtube_oauth(credentials_info):
     SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
     creds = None
 
-    # تحميل التوكن من ملف pickle إذا كان موجودًا
+    # التحقق إذا كان قد تم إنشاء الرمز المميز سابقًا
     if os.path.exists('token_youtube.pickle'):
         with open('token_youtube.pickle', 'rb') as token:
             creds = pickle.load(token)
 
+    # إذا لم يكن الرمز المميز موجودًا أو غير صالح، نقوم بإنشاء واحد جديد
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
+            # هنا نستخدم run_console بدلاً من run_local_server لتوثيق OAuth
             flow = InstalledAppFlow.from_client_config(credentials_info, SCOPES)
-            creds = flow.run_local_server(port=0)
+            creds = flow.run_console()  # تعديل هنا
 
+        # حفظ الرمز المميز لاستخدامه لاحقًا
         with open('token_youtube.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
