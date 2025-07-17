@@ -11,8 +11,18 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 
 # طباعة المسارات أو محتوى JSON من المتغيرات البيئية
-print("GOOGLE_DRIVE_CREDENTIALS =", os.environ.get("GOOGLE_DRIVE_CREDENTIALS"))
-print("YOUTUBE_CLIENT_SECRETS =", os.environ.get("YOUTUBE_CLIENT_SECRETS"))
+def print_env_vars():
+    google_drive_env = os.getenv('GOOGLE_DRIVE_CREDENTIALS_JSON')
+    youtube_env = os.getenv('CLIENT_SECRETS_JSON')
+
+    print(f"GOOGLE_DRIVE_CREDENTIALS: {google_drive_env[:60]}...")  # عرض أول 60 حرفًا فقط
+    print(f"YOUTUBE_CLIENT_SECRETS: {youtube_env[:60]}...")  # عرض أول 60 حرفًا فقط
+
+    if google_drive_env is None or youtube_env is None:
+        raise ValueError("One or more of the required environment variables are missing.")
+    
+    if google_drive_env.strip() == "" or youtube_env.strip() == "":
+        raise ValueError("One or more of the environment variables are empty.")
 
 # تحميل بيانات الاعتماد من البيئة (محليًا أو GitHub Actions)
 def load_credentials_from_env():
@@ -160,6 +170,7 @@ def schedule_videos(drive_service, youtube_service):
 # الوظيفة الرئيسية
 def main():
     try:
+        print_env_vars()  # طباعة المتغيرات البيئية والتحقق منها
         google_drive_credentials_info, client_secrets_info = load_credentials_from_env()
         drive_service = authenticate_google_drive(google_drive_credentials_info)
         youtube_service = authenticate_youtube_oauth(client_secrets_info)
