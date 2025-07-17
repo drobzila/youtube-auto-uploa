@@ -1,59 +1,82 @@
 import os
-import google.auth
+import io
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.errors import HttpError
+from tempfile import NamedTemporaryFile
 
-# تحميل الأسرار من البيئة
-CLIENT_ID = os.getenv('DRIVE_CLIENT_ID')
-CLIENT_SECRET = os.getenv('DRIVE_CLIENT_SECRET')
-REFRESH_TOKEN = os.getenv('DRIVE_REFRESH_TOKEN')
+# إعدادات الوصول إلى Google Drive API
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+DOWNLOAD_FOLDER = 'downloaded_videos'  # هذا هو المجلد الذي سيتم تحميل الفيديوهات إليه
 
-# تعريف بعض المتغيرات الأخرى
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']  # تغيير الأذونات حسب الحاجة
-FOLDER_ID = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # ID المجلد الذي يحتوي على الفيديوهات
+# استرجاع الأسرار من البيئة
+def get_drive_credentials():
+    client_id = os.getenv('DRIVE_CLIENT_ID')
+    client_secret = os.getenv('DRIVE_CLIENT_SECRET')
+    refresh_token = os.getenv('DRIVE_REFRESH_TOKEN')
 
-# المصادقة مع Google API
-def authenticate_drive():
+    if not all([client_id, client_secret, refresh_token]):
+        raise ValueError("Missing one or more Drive credentials in environment variables.")
+    
+    # استخدم هذه القيم لإنشاء بيانات OAuth
     credentials = Credentials(
         None,
-        refresh_token=REFRESH_TOKEN,
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
+        refresh_token=refresh_token,
+        client_id=client_id,
+        client_secret=client_secret,
         token_uri="https://oauth2.googleapis.com/token"
     )
-
+    
+    # تحقق من صحة البيانات
     if credentials and credentials.expired and credentials.refresh_token:
         credentials.refresh(Request())
 
     return credentials
 
-# تحميل الملفات من المجلد المحدد
-def download_files():
-    creds = authenticate_drive()
-    try:
-        service = build('drive', 'v3', credentials=creds)
-        
-        # استرجاع الملفات في المجلد
-        results = service.files().list(
-            q=f"'{FOLDER_ID}' in parents", spaces='drive', fields='files(id, name)').execute()
-        items = results.get('files', [])
+# تهيئة عملية OAuth2
+def authenticate_drive():
+    credentials = get_drive_credentials()
+    return credentials
 
-        if not items:
-            print('No files found.')
-        else:
-            for item in items:
-                print(f'Downloading file: {item["name"]}')
-                request = service.files().get_media(fileId=item['id'])
-                file_path = f'downloaded_videos/{item["name"]}'
-                with open(file_path, 'wb') as f:
-                    downloader = googleapiclient.http.MediaIoBaseDownload(f, request)
-                    done = False
-                    while done is False:
-                        status, done = downloader.next_chunk()
-                        print(f"Download {int(status.progress() * 100)}%.")
-        print("All files downloaded successfully!")
-    
+def download_file(service, file_id, destination):
+    request = service.files().get_media(fileId=file_id)
+    fh = io.FileIO(destination, 'wb')
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        print(f'Downloading {destination} {int(status.progress() * 100)}%.')
+    print(f'File {destination} downloaded successfully.')
+
+def get_drive_files(credentials):
+    try:
+        service = build('drive', 'v3', credentials=credentials)
+        results = service.files().list(q="'1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ' in parents and mimeType = 'video/mp4'",
+                                       fields="files(id, name)").execute()
+        items = results.get('files', [])
+        return items
     except HttpError as error:
-        print(f"An error occurred: {error}"
+        print(f"An error occurred: {error}")
+        return []
+
+def main():
+    if not os.path.exists(DOWNLOAD_FOLDER):
+        os.makedirs(DOWNLOAD_FOLDER)
+
+    credentials = authenticate_drive()
+
+    files = get_drive_files(credentials)
+    
+    if not files:
+        print('No files found.')
+    else:
+        for file in files:
+            file_id = file['id']
+            file_name = file['name']
+            destination = os.path.join(DOWNLOAD_FOLDER, file_name)
+            download_file(service=build('drive', 'v3', credentials=credentials), file_id=file_id, destination=destination)
+
+if __name__ == '__main__':
+    main()
