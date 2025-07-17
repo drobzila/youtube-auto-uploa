@@ -38,6 +38,7 @@ def download_video_from_drive(file_id, file_name, drive_service):
     return file_name
 
 # إعداد التصريحات من Google API لـ YouTube باستخدام حساب الخدمة
+# إعداد التصريحات من Google API لـ YouTube باستخدام حساب الخدمة
 def get_youtube_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
         {
@@ -53,7 +54,7 @@ def get_youtube_service():
             "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/youtube%40youtube-auto-publisher-465723.iam.gserviceaccount.com",
             "universe_domain": "googleapis.com"
         },
-        scopes=["https://www.googleapis.com/auth/youtube.upload"]
+        scopes=["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.force-ssl"]
     )
     youtube_service = build('youtube', 'v3', credentials=credentials)
     return youtube_service
