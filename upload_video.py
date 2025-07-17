@@ -1,10 +1,10 @@
 import os
 import io
+import google.auth
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-from google.oauth2.credentials import Credentials  # إضافة الاستيراد هنا
-from google.auth.transport.requests import Request  # إضافة الاستيراد هنا
 
 # إعداد تصاريح Google API من ملف الخدمة (service account)
 def get_drive_service():
@@ -27,16 +27,15 @@ def get_drive_service():
     drive_service = build('drive', 'v3', credentials=credentials)
     return drive_service
 
-# تنزيل الفيديو من Google Drive
-def download_video_from_drive(file_id, drive_service):
-    results = drive_service.files().list(q=f"'{file_id}' in parents", pageSize=10).execute()
+# تحميل الفيديو من Google Drive
+def download_video_from_drive(folder_id, drive_service):
+    results = drive_service.files().list(q=f"'{folder_id}' in parents", pageSize=10).execute()
     items = results.get('files', [])
     
     if not items:
-        print('No files found in this folder.')
+        print('No videos found in this folder.')
         return None
 
-    # تصفح الملفات في المجلد
     for item in items:
         file_name = item['name']
         file_mime_type = item['mimeType']
@@ -54,7 +53,7 @@ def download_video_from_drive(file_id, drive_service):
             return file_name
     return None
 
-# إعداد تصاريح YouTube API
+# إعداد التصريحات من Google API
 def get_youtube_service():
     credentials = Credentials.from_authorized_user_info(
         {
@@ -77,28 +76,25 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
             snippet=dict(
                 title=title,
                 description=description,
-                tags=["example", "video"],
             ),
             status=dict(
-                privacyStatus="public",  # يمكن تغييره إلى "private" أو "unlisted"
+                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
             ),
         ),
-        media_body=media,
+        media_body=media
     )
 
     response = request.execute()
-    print(f"Video uploaded: {response['id']}")
+    print(f"Video uploaded successfully! Video ID: {response['id']}")
 
-# تنفيذ الكود
 def main():
+    folder_id = "1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ"  # معرف المجلد الصحيح
     drive_service = get_drive_service()
-    youtube_service = get_youtube_service()
-    
-    folder_id = "معرف المجلد هنا"
     video_file = download_video_from_drive(folder_id, drive_service)
     
     if video_file:
-        upload_video_to_youtube(video_file, 'Video Title', 'Video Description', youtube_service)
+        youtube_service = get_youtube_service()
+        upload_video_to_youtube(video_file, 'Video from Google Drive', 'Uploaded from Google Drive using script', youtube_service)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
