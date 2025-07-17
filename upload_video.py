@@ -1,10 +1,9 @@
 import os
 import io
-import google.auth
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
-from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+from google.oauth2.credentials import Credentials
 
 # إعداد تصاريح Google API من ملف الخدمة (service account)
 def get_drive_service():
@@ -38,7 +37,7 @@ def download_video_from_drive(file_id, file_name, drive_service):
         print(f"Download {int(status.progress() * 100)}%.")
     return file_name
 
-# إعداد التصريحات من Google API
+# إعداد التصريحات من Google API لـ YouTube
 def get_youtube_service():
     credentials = Credentials.from_authorized_user_info(
         {
@@ -63,7 +62,7 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
                 description=description,
             ),
             status=dict(
-                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
+                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب الحاجة
             ),
         ),
         media_body=media
@@ -73,27 +72,27 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     print(f"Video uploaded successfully! Video ID: {response['id']}")
 
     # إضافة الفيديو إلى السجل بعد رفعه
-    add_uploaded_video_to_file(response['id'])
+    add_video_to_log(title)
 
-# إضافة معرّف الفيديو إلى ملف السجل
-def add_uploaded_video_to_file(video_id):
-    with open("uploaded_videos.txt", "a") as file:
-        file.write(video_id + "\n")
-        file.flush()  # التأكد من الكتابة في الملف فورًا
-    print(f"Video ID {video_id} added to uploaded_videos.txt.")
-
-# التحقق مما إذا كان الفيديو قد تم رفعه
-def is_video_uploaded(video_id):
-    if os.path.exists("uploaded_videos.txt"):
-        with open("uploaded_videos.txt", "r") as file:
+# التحقق إذا كان الفيديو قد تم رفعه بناءً على العنوان
+def is_video_uploaded(video_title):
+    if os.path.exists("uploaded_videos_log.txt"):
+        with open("uploaded_videos_log.txt", "r") as file:
             uploaded_videos = file.readlines()
-            return video_id + "\n" in uploaded_videos
+            uploaded_videos = [line.strip() for line in uploaded_videos]  # إزالة المسافات الزائدة
+            return video_title in uploaded_videos  # تحقق مما إذا كان العنوان موجودًا في السجل
     return False
+
+# إضافة العنوان إلى السجل بعد رفع الفيديو
+def add_video_to_log(video_title):
+    with open("uploaded_videos_log.txt", "a") as file:
+        file.write(video_title.strip() + "\n")  # تأكد من إزالة أي مسافات إضافية
+        file.flush()  # التأكد من الكتابة في الملف فورًا
+    print(f"Video '{video_title}' added to uploaded_videos_log.txt.")
 
 # تنفيذ العملية
 def main():
-    # معرف المجلد في Google Drive
-    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # ضع هنا معرف المجلد في Google Drive الذي يحتوي على الفيديوهات
+    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # معرف المجلد في Google Drive
 
     # إعداد Google Drive API
     drive_service = get_drive_service()
@@ -113,9 +112,9 @@ def main():
 
     print(f"Found video: {video_name}, downloading...")
 
-    # التحقق إذا كان الفيديو قد تم تحميله
-    if is_video_uploaded(video_id):
-        print(f"Video {video_name} has already been uploaded. Skipping.")
+    # التحقق إذا كان الفيديو قد تم تحميله بناءً على العنوان
+    if is_video_uploaded(video_name):
+        print(f"Video '{video_name}' has already been uploaded. Skipping.")
         return
 
     # تنزيل الفيديو من Google Drive
