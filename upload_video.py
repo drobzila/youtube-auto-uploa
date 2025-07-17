@@ -34,6 +34,11 @@ def download_video_from_drive(file_id, file_name, drive_service):
         file = drive_service.files().get(fileId=file_id).execute()
         mime_type = file['mimeType']
 
+        # تحقق إذا كان الملف مجلدًا أو ليس فيديو
+        if mime_type == 'application/vnd.google-apps.folder':
+            print(f"The file is a folder, not a video.")
+            return None
+
         # إذا كان الملف فيديو، حمله بشكل مباشر
         if 'video' in mime_type:
             request = drive_service.files().get_media(fileId=file_id)
@@ -67,49 +72,35 @@ def get_youtube_service():
 # رفع الفيديو إلى YouTube
 def upload_video_to_youtube(file_path, title, description, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
-
     request = youtube_service.videos().insert(
         part="snippet,status",
-        body=dict(
-            snippet=dict(
-                title=title,
-                description=description,
-            ),
-            status=dict(
-                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
-            ),
-        ),
+        body={
+            "snippet": {
+                "title": title,
+                "description": description,
+                "tags": ["test", "video", "upload"]
+            },
+            "status": {
+                "privacyStatus": "public"
+            }
+        },
         media_body=media
     )
-
     response = request.execute()
-    print(f"Video uploaded successfully! Video ID: {response['id']}")
+    print(f"Video uploaded successfully. Video ID: {response['id']}")
+    return response['id']
 
-    # إضافة الفيديو إلى السجل بعد رفعه
-    add_uploaded_video_to_file(response['id'])
-
-    # حذف الفيديو من Google Drive بعد رفعه إلى YouTube
-    delete_video_from_drive(file_id)
-
-# إضافة معرّف الفيديو المرفوع إلى ملف تم حفظه سابقاً
+# إضافة الفيديو المرفوع إلى ملف تم حفظه سابقًا
 def add_uploaded_video_to_file(video_id):
     with open('uploaded_videos.txt', 'a') as file:
         file.write(f"{video_id}\n")
-
-# حذف الفيديو من Google Drive بعد رفعه إلى YouTube
-def delete_video_from_drive(file_id):
-    try:
-        drive_service.files().delete(fileId=file_id).execute()
-        print(f"Video {file_id} deleted from Google Drive after upload.")
-    except Exception as e:
-        print(f"An error occurred while deleting the video: {e}")
 
 # الدالة الرئيسية
 def main():
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
 
-    file_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # قم بإدخال معرّف الملف
+    file_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # معرّف الملف من Google Drive
     downloaded_video_path = "اسمعها كأنها أول مرة.mp4"
     
     # تنزيل الفيديو من Google Drive
