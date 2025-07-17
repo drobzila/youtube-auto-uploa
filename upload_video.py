@@ -40,6 +40,7 @@ def download_video_from_drive(file_id, file_name, drive_service):
         return file_name
     except Exception as e:
         print(f"An error occurred while downloading the video: {e}")
+        return None  # إرجاع None إذا حدث خطأ
 
 # إعداد التصريحات من Google API
 def get_youtube_service():
@@ -56,6 +57,10 @@ def get_youtube_service():
 
 # رفع الفيديو إلى YouTube
 def upload_video_to_youtube(file_path, title, description, youtube_service):
+    if not file_path:  # إذا كان الملف غير موجود
+        print("No file to upload.")
+        return
+
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
     request = youtube_service.videos().insert(
@@ -108,8 +113,11 @@ def main():
     print(f"Found video: {uploaded_video_path}, downloading...")
     downloaded_video_path = download_video_from_drive(file_id, uploaded_video_path, drive_service)
     
-    # رفع الفيديو إلى YouTube
-    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
+    if downloaded_video_path:
+        # رفع الفيديو إلى YouTube
+        upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
+    else:
+        print("Download failed, skipping upload.")
 
 # بدء العملية
 if __name__ == '__main__':
