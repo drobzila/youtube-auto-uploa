@@ -94,27 +94,36 @@ def delete_video_from_drive(file_id):
         print(f"An error occurred while deleting the video: {e}")
 
 def main():
-    # معرّف المجلد الذي يحتوي على الفيديوهات
-    folder_id = "معرف_المجلد_هنا"
+    1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ = "معرف_المجلد_هنا"  # ضع معرف المجلد هنا
 
-    # استرجاع الخدمة
+    # استرجاع الخدمات
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
 
-    # استعراض الملفات داخل المجلد في Google Drive
-    results = drive_service.files().list(q=f"'{folder_id}' in parents", pageSize=10).execute()
-    files = results.get('files', [])
+    try:
+        # عرض تفاصيل الطلب
+        print(f"Attempting to list files in folder: {folder_id}")
+        
+        # طلب لعرض الملفات في المجلد
+        results = drive_service.files().list(q=f"'{folder_id}' in parents", pageSize=10).execute()
+        files = results.get('files', [])
 
-    # تحميل الفيديوهات من Google Drive
-    for file in files:
-        file_id = file['id']
-        file_name = file['name']
-        print(f"Found video: {file_name}, downloading...")
-        try:
-            downloaded_video_path = download_video_from_drive(file_id, file_name, drive_service)
-            upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service, file_id)
-        except Exception as e:
-            print(f"An error occurred: {e}")
+        if not files:
+            print("No files found in the folder.")
+        else:
+            for file in files:
+                file_id = file['id']
+                file_name = file['name']
+                print(f"Found video: {file_name}, downloading...")
+                try:
+                    downloaded_video_path = download_video_from_drive(file_id, file_name, drive_service)
+                    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service, file_id)
+                except Exception as e:
+                    print(f"An error occurred while downloading or uploading: {e}")
 
-if __name__ == "__main__":
-    main()
+    except googleapiclient.errors.HttpError as err:
+        print(f"HttpError: {err}")
+        if 'notFound' in str(err):
+            print("The folder was not found or is not accessible. Please check the folder ID.")
+        else:
+            print("An unexpected error occurred while accessing Google Drive.")
