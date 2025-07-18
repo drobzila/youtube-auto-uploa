@@ -98,21 +98,6 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     # إضافة عنوان الفيديو ومعرف الفيديو إلى السجل بعد رفعه
     add_uploaded_video_to_log(response['id'], title)
 
-# إضافة معرّف الفيديو إلى ملف السجل
-def add_uploaded_video_to_file(video_id):
-    with open("uploaded_videos.txt", "a") as file:
-        file.write(video_id + "\n")
-        file.flush()  # التأكد من الكتابة في الملف فورًا
-    print(f"Video ID {video_id} added to uploaded_videos.txt.")
-
-# التحقق مما إذا كان الفيديو قد تم رفعه
-def is_video_uploaded(video_id):
-    if os.path.exists("uploaded_videos.txt"):
-        with open("uploaded_videos.txt", "r") as file:
-            uploaded_videos = file.readlines()
-            return video_id + "\n" in uploaded_videos
-    return False
-
 # تنفيذ العملية
 def main():
     # معرف المجلد في Google Drive
@@ -135,11 +120,6 @@ def main():
     video_name = video['name']
 
     print(f"Found video: {video_name}, downloading...")
-
-    # التحقق إذا كان الفيديو قد تم تحميله
-    if is_video_uploaded(video_id):
-        print(f"Video {video_name} has already been uploaded. Skipping.")
-        return
 
     # تنزيل الفيديو من Google Drive
     downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
