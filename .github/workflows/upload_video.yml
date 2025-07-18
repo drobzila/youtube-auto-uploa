@@ -27,7 +27,6 @@ jobs:
     - name: Upload video to YouTube
       run: |
         python upload_video.py
-        echo "Upload Video to YouTube - Success" >> log.txt
       env:
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
