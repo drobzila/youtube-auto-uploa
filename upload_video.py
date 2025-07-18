@@ -52,6 +52,16 @@ def get_youtube_service():
     youtube_service = build('youtube', 'v3', credentials=credentials)
     return youtube_service
 
+# التحقق مما إذا كان عنوان الفيديو موجودًا في السجل
+def is_video_in_log(video_title):
+    if os.path.exists("log.txt"):
+        with open("log.txt", "r") as log_file:
+            log_entries = log_file.readlines()
+            for entry in log_entries:
+                if video_title in entry:
+                    return True
+    return False
+
 # إضافة عنوان الفيديو ومعرف الفيديو إلى السجل
 def add_uploaded_video_to_log(video_id, video_title):
     with open("log.txt", "a") as log_file:
@@ -62,6 +72,11 @@ def add_uploaded_video_to_log(video_id, video_title):
 # رفع الفيديو إلى YouTube
 def upload_video_to_youtube(file_path, title, description, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
+
+    # التحقق إذا كان الفيديو قد تم رفعه مسبقًا بناءً على عنوانه
+    if is_video_in_log(title):
+        print(f"Video '{title}' has already been uploaded. Skipping.")
+        return
 
     request = youtube_service.videos().insert(
         part="snippet,status",
@@ -133,7 +148,7 @@ def main():
     youtube_service = get_youtube_service()
 
     # رفع الفيديو إلى YouTube
-    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
+    upload_video_to_youtube(downloaded_video_path, video_name, 'This video was uploaded from Google Drive using script.', youtube_service)
 
 if __name__ == '__main__':
     main()
