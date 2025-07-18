@@ -52,16 +52,6 @@ def get_youtube_service():
     youtube_service = build('youtube', 'v3', credentials=credentials)
     return youtube_service
 
-# التحقق مما إذا كان عنوان الفيديو موجودًا في السجل
-def is_video_in_log(video_title):
-    if os.path.exists("log.txt"):
-        with open("log.txt", "r") as log_file:
-            log_entries = log_file.readlines()
-            for entry in log_entries:
-                if video_title in entry:
-                    return True
-    return False
-
 # إضافة عنوان الفيديو ومعرف الفيديو إلى السجل
 def add_uploaded_video_to_log(video_id, video_title):
     with open("log.txt", "a") as log_file:
@@ -70,7 +60,7 @@ def add_uploaded_video_to_log(video_id, video_title):
     print(f"Video '{video_title}' with ID {video_id} added to log.")
 
 # رفع الفيديو إلى YouTube
-def upload_video_to_youtube(file_path, title, description, youtube_service):
+def upload_video_to_youtube(file_path, title, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
     request = youtube_service.videos().insert(
@@ -78,10 +68,10 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
         body=dict(
             snippet=dict(
                 title=title,
-                description=description,
             ),
             status=dict(
                 privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
+                madeForKids=False  # الفيديو غير مخصص للأطفال
             ),
         ),
         media_body=media
@@ -92,6 +82,21 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
 
     # إضافة عنوان الفيديو ومعرف الفيديو إلى السجل بعد رفعه
     add_uploaded_video_to_log(response['id'], title)
+
+# إضافة معرّف الفيديو إلى ملف السجل
+def add_uploaded_video_to_file(video_id):
+    with open("uploaded_videos.txt", "a") as file:
+        file.write(video_id + "\n")
+        file.flush()  # التأكد من الكتابة في الملف فورًا
+    print(f"Video ID {video_id} added to uploaded_videos.txt.")
+
+# التحقق مما إذا كان الفيديو قد تم رفعه
+def is_video_uploaded(video_id):
+    if os.path.exists("uploaded_videos.txt"):
+        with open("uploaded_videos.txt", "r") as file:
+            uploaded_videos = file.readlines()
+            return video_id + "\n" in uploaded_videos
+    return False
 
 # تنفيذ العملية
 def main():
@@ -109,29 +114,26 @@ def main():
         print("No files found in this folder.")
         return
 
-    # معالجة الفيديوهات
-    for video in files:
-        video_id = video['id']
-        video_name = video['name']
+    # اختر الفيديو الأول من المجلد
+    video = files[0]
+    video_id = video['id']
+    video_name = video['name']
 
-        print(f"Found video: {video_name}, downloading...")
+    print(f"Found video: {video_name}, downloading...")
 
-        # التحقق إذا كان الفيديو قد تم رفعه
-        if is_video_in_log(video_name):
-            print(f"Video '{video_name}' has already been uploaded. Skipping.")
-            continue
+    # التحقق إذا كان الفيديو قد تم تحميله
+    if is_video_uploaded(video_id):
+        print(f"Video {video_name} has already been uploaded. Skipping.")
+        return
 
-        # تنزيل الفيديو من Google Drive
-        downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
+    # تنزيل الفيديو من Google Drive
+    downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
 
-        # إعداد YouTube API
-        youtube_service = get_youtube_service()
+    # إعداد YouTube API
+    youtube_service = get_youtube_service()
 
-        # رفع الفيديو إلى YouTube
-        upload_video_to_youtube(downloaded_video_path, video_name, 'This video was uploaded from Google Drive using script.', youtube_service)
-
-        # إذا تم رفع الفيديو، التوقف عن رفع أي فيديو آخر
-        break
+    # رفع الفيديو إلى YouTube
+    upload_video_to_youtube(downloaded_video_path, video_name, youtube_service)
 
 if __name__ == '__main__':
     main()
