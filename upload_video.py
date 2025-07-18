@@ -7,11 +7,6 @@ from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 import datetime
 
-# دالة لتسجيل الرسائل في log.txt
-def log_message(message):
-    with open('log.txt', 'a') as log_file:
-        log_file.write(f"{datetime.datetime.now()} - {message}\n")
-
 # إعداد تصاريح Google API من ملف الخدمة (service account)
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
@@ -57,6 +52,13 @@ def get_youtube_service():
     youtube_service = build('youtube', 'v3', credentials=credentials)
     return youtube_service
 
+# إضافة عنوان الفيديو ومعرف الفيديو إلى السجل
+def add_uploaded_video_to_log(video_id, video_title):
+    with open("log.txt", "a") as log_file:
+        log_file.write(f"{video_title} - Video ID: {video_id} - {datetime.datetime.now()}\n")
+        log_file.flush()  # التأكد من الكتابة في الملف فورًا
+    print(f"Video '{video_title}' with ID {video_id} added to log.")
+
 # رفع الفيديو إلى YouTube
 def upload_video_to_youtube(file_path, title, description, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
@@ -76,15 +78,10 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     )
 
     response = request.execute()
-    video_id = response['id']  # الحصول على معرّف الفيديو
+    print(f"Video uploaded successfully! Video ID: {response['id']}")
 
-    print(f"Video uploaded successfully! Video ID: {video_id}")
-
-    # إضافة الفيديو إلى السجل بعد رفعه
-    add_uploaded_video_to_file(video_id)
-
-    # تسجيل في السجل
-    log_message(f"Video uploaded successfully with Video ID: {video_id}")
+    # إضافة عنوان الفيديو ومعرف الفيديو إلى السجل بعد رفعه
+    add_uploaded_video_to_log(response['id'], title)
 
 # إضافة معرّف الفيديو إلى ملف السجل
 def add_uploaded_video_to_file(video_id):
