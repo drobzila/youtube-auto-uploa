@@ -73,11 +73,6 @@ def add_uploaded_video_to_log(video_id, video_title):
 def upload_video_to_youtube(file_path, title, description, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
-    # التحقق إذا كان الفيديو قد تم رفعه مسبقًا بناءً على عنوانه
-    if is_video_in_log(title):
-        print(f"Video '{title}' has already been uploaded. Skipping.")
-        return
-
     request = youtube_service.videos().insert(
         part="snippet,status",
         body=dict(
@@ -114,12 +109,17 @@ def main():
         print("No files found in this folder.")
         return
 
-    # معالجة كل فيديو في المجلد
+    # معالجة الفيديوهات
     for video in files:
         video_id = video['id']
         video_name = video['name']
 
         print(f"Found video: {video_name}, downloading...")
+
+        # التحقق إذا كان الفيديو قد تم رفعه
+        if is_video_in_log(video_name):
+            print(f"Video '{video_name}' has already been uploaded. Skipping.")
+            continue
 
         # تنزيل الفيديو من Google Drive
         downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
@@ -129,6 +129,9 @@ def main():
 
         # رفع الفيديو إلى YouTube
         upload_video_to_youtube(downloaded_video_path, video_name, 'This video was uploaded from Google Drive using script.', youtube_service)
+
+        # إذا تم رفع الفيديو، التوقف عن رفع أي فيديو آخر
+        break
 
 if __name__ == '__main__':
     main()
