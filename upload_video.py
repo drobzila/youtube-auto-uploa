@@ -5,6 +5,12 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+import datetime
+
+# دالة لتسجيل الرسائل في log.txt
+def log_message(message):
+    with open('log.txt', 'a') as log_file:
+        log_file.write(f"{datetime.datetime.now()} - {message}\n")
 
 # إعداد تصاريح Google API من ملف الخدمة (service account)
 def get_drive_service():
@@ -70,10 +76,15 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     )
 
     response = request.execute()
-    print(f"Video uploaded successfully! Video ID: {response['id']}")
+    video_id = response['id']  # الحصول على معرّف الفيديو
+
+    print(f"Video uploaded successfully! Video ID: {video_id}")
 
     # إضافة الفيديو إلى السجل بعد رفعه
-    add_uploaded_video_to_file(response['id'])
+    add_uploaded_video_to_file(video_id)
+
+    # تسجيل في السجل
+    log_message(f"Video uploaded successfully with Video ID: {video_id}")
 
 # إضافة معرّف الفيديو إلى ملف السجل
 def add_uploaded_video_to_file(video_id):
