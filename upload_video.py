@@ -27,7 +27,18 @@ def get_drive_service():
     drive_service = build('drive', 'v3', credentials=credentials)
     return drive_service
 
-# إعداد التصريحات من Google API ليوتيوب
+# تحميل الفيديو من Google Drive
+def download_video_from_drive(file_id, file_name, drive_service):
+    request = drive_service.files().get_media(fileId=file_id)
+    fh = io.FileIO(file_name, 'wb')
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        print(f"Download {int(status.progress() * 100)}%.")
+    return file_name
+
+# إعداد التصريحات من Google API
 def get_youtube_service():
     credentials = Credentials.from_authorized_user_info(
         {
@@ -39,60 +50,6 @@ def get_youtube_service():
     )
     youtube_service = build('youtube', 'v3', credentials=credentials)
     return youtube_service
-
-# جلب آخر 10 فيديوهات شورت
-def get_last_10_shorts_videos(channel_id, youtube_service):
-    request = youtube_service.search().list(
-        part="snippet",
-        channelId=channel_id,
-        maxResults=10,  # أو العدد المطلوب
-        type="video",
-        videoDuration="short",  # فقط الفيديوهات القصيرة
-    )
-    response = request.execute()
-
-    for item in response.get("items", []):
-        print(f"Title: {item['snippet']['title']}, Video ID: {item['id']['videoId']}")
-    
-    if not videos:
-        print("No videos found.")
-        return
-
-    print("Last 10 Shorts videos:")
-    shorts_videos = []
-    for video in videos:
-        video_id = video['id']['videoId']
-        video_details = youtube_service.videos().list(
-            part="contentDetails",
-            id=video_id
-        ).execute()
-
-        # التحقق من مدة الفيديو
-        duration = video_details['items'][0]['contentDetails']['duration']
-        
-        # إذا كانت مدة الفيديو أقل من 60 ثانية، فهو فيديو شورت
-        if 'PT' in duration and 'S' in duration:
-            seconds = int(duration.split('PT')[1].split('S')[0])
-            if seconds <= 60:
-                title = video['snippet']['title']
-                shorts_videos.append(title)
-
-    if shorts_videos:
-        for title in shorts_videos:
-            print(f"- {title}")
-    else:
-        print("No Shorts videos found.")
-
-# تحميل الفيديو من Google Drive
-def download_video_from_drive(file_id, file_name, drive_service):
-    request = drive_service.files().get_media(fileId=file_id)
-    fh = io.FileIO(file_name, 'wb')
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-    while done is False:
-        status, done = downloader.next_chunk()
-        print(f"Download {int(status.progress() * 100)}%.")
-    return file_name
 
 # رفع الفيديو إلى YouTube
 def upload_video_to_youtube(file_path, title, description, youtube_service):
@@ -115,13 +72,8 @@ def upload_video_to_youtube(file_path, title, description, youtube_service):
     response = request.execute()
     print(f"Video uploaded successfully! Video ID: {response['id']}")
 
-# التحقق مما إذا كان الفيديو قد تم رفعه
-def is_video_uploaded(video_id):
-    if os.path.exists("uploaded_videos.txt"):
-        with open("uploaded_videos.txt", "r") as file:
-            uploaded_videos = file.readlines()
-            return video_id + "\n" in uploaded_videos
-    return False
+    # إضافة الفيديو إلى السجل بعد رفعه
+    add_uploaded_video_to_file(response['id'])
 
 # إضافة معرّف الفيديو إلى ملف السجل
 def add_uploaded_video_to_file(video_id):
@@ -130,19 +82,23 @@ def add_uploaded_video_to_file(video_id):
         file.flush()  # التأكد من الكتابة في الملف فورًا
     print(f"Video ID {video_id} added to uploaded_videos.txt.")
 
+# التحقق مما إذا كان الفيديو قد تم رفعه
+def is_video_uploaded(video_id):
+    if os.path.exists("uploaded_videos.txt"):
+        with open("uploaded_videos.txt", "r") as file:
+            uploaded_videos = file.readlines()
+            return video_id + "\n" in uploaded_videos
+    return False
+
 # تنفيذ العملية
 def main():
-    # إعداد خدمة Google Drive
+    # معرف المجلد في Google Drive
+    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # ضع هنا معرف المجلد في Google Drive الذي يحتوي على الفيديوهات
+
+    # إعداد Google Drive API
     drive_service = get_drive_service()
 
-    # معرف القناة على يوتيوب
-    channel_id = "UCHYJMygtSl60pThu6AUgeOw"
-
-    # جلب آخر 10 فيديوهات شورت من يوتيوب
-    get_last_10_shorts_videos(channel_id, drive_service)
-
-    # جلب الملفات من Google Drive (مجلد الفيديوهات)
-    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # ضع هنا معرف المجلد في Google Drive الذي يحتوي على الفيديوهات
+    # استرداد الملفات من المجلد
     results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
     files = results.get('files', [])
 
@@ -166,7 +122,7 @@ def main():
     downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
 
     # إعداد YouTube API
-    youtube_service = build('youtube', 'v3', credentials=credentials)
+    youtube_service = get_youtube_service()
 
     # رفع الفيديو إلى YouTube
     upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
