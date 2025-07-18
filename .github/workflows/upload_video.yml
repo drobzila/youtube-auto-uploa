@@ -1,32 +1,37 @@
-name: Upload Video to YouTube
+name: Upload Video to YouTube from Google Drive
 
 on:
   push:
     branches:
-      - main  # أو أي فرع آخر ترغب في مراقبته
-  workflow_dispatch:  # لتشغيل الـ workflow يدويًا إذا أردت
+      - main
+  workflow_dispatch:
 
 jobs:
-  upload:
+  upload_video:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - name: Checkout repository
+    - name: Check out the code
       uses: actions/checkout@v2
 
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.x'
+        python-version: '3.8'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
+        pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Upload video to YouTube
-      run: python upload_video.py
+    - name: Set up Google API credentials
+      run: echo "${{ secrets.GOOGLE_API_CREDENTIALS }}" > credentials.json
+
+    - name: Run the upload video script
       env:
+        GOOGLE_APPLICATION_CREDENTIALS: credentials.json
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
         YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      run: |
+        python upload_video.py
