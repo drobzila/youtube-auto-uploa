@@ -3,8 +3,8 @@ name: Upload Video to YouTube
 on:
   push:
     branches:
-      - main  # أو أي فرع آخر ترغب في مراقبته
-  workflow_dispatch:  # لتشغيل الـ workflow يدويًا إذا أردت
+      - main
+  workflow_dispatch:
 
 jobs:
   upload:
@@ -27,7 +27,7 @@ jobs:
     - name: Upload video to YouTube
       run: |
         python upload_video.py
-        echo "Upload Video to YouTube - Success" >> log.txt  # تسجيل نجاح الرفع في السجل
+        echo "Upload Video to YouTube - Success" >> log.txt
       env:
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
@@ -35,8 +35,8 @@ jobs:
 
     - name: Commit and push log changes
       run: |
-        git config --global user.name "GitHub Actions"  # إعداد اسم المستخدم
-        git config --global user.email "actions@github.com"  # إعداد البريد الإلكتروني
-        git add log.txt  # إضافة ملف السجل إلى Git
-        git commit -m "Update log with video upload status"  # إضافة التغيير (commit)
-        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git  # رفع التغييرات باستخدام التوكن
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add log.txt
+        git commit -m "Update log with video upload status"
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
