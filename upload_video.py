@@ -1,18 +1,10 @@
 import os
-import datetime
-import random
-import google.auth.transport.requests
-from google.oauth2.credentials import Credentials
+import io
+import google.auth
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google.auth.transport.requests import Request
-from pydrive2.auth import GoogleAuth
-from pydrive2.drive import GoogleDrive
-
-# إعداد الاعتماديات من المتغيرات البيئية
-YOUTUBE_CLIENT_ID = os.environ['YOUTUBE_CLIENT_ID']
-YOUTUBE_CLIENT_SECRET = os.environ['YOUTUBE_CLIENT_SECRET']
-YOUTUBE_REFRESH_TOKEN = os.environ['YOUTUBE_REFRESH_TOKEN']
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 # إعداد تصاريح Google API من ملف الخدمة (service account)
 def get_drive_service():
@@ -35,125 +27,105 @@ def get_drive_service():
     drive_service = build('drive', 'v3', credentials=credentials)
     return drive_service
 
-# المسار إلى سجل الفيديوهات المرفوعة
-LOG_FILE = "log.txt"
+# تحميل الفيديو من Google Drive
+def download_video_from_drive(file_id, file_name, drive_service):
+    request = drive_service.files().get_media(fileId=file_id)
+    fh = io.FileIO(file_name, 'wb')
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        print(f"Download {int(status.progress() * 100)}%.")
+    return file_name
 
-# إعداد YouTube API
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-
-def get_authenticated_service():
-    creds = Credentials(
-        None,
-        refresh_token=YOUTUBE_REFRESH_TOKEN,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=YOUTUBE_CLIENT_ID,
-        client_secret=YOUTUBE_CLIENT_SECRET,
-        scopes=SCOPES,
-    )
-    creds.refresh(Request())
-    return build("youtube", "v3", credentials=creds)
-
-# إعداد Google Drive
-
-def authenticate_drive():
-    gauth = GoogleAuth()
-    gauth.LoadCredentials()
-    gauth.settings["client_config"] = {
-        "client_id": DRIVE_CLIENT_ID,
-        "client_secret": DRIVE_CLIENT_SECRET,
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-    }
-    gauth.credentials = Credentials(
-        None,
-        refresh_token=DRIVE_REFRESH_TOKEN,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=DRIVE_CLIENT_ID,
-        client_secret=DRIVE_CLIENT_SECRET,
-        scopes=['https://www.googleapis.com/auth/drive']
-    )
-    gauth.Refresh()
-    return GoogleDrive(gauth)
-
-def read_log():
-    if not os.path.exists(LOG_FILE):
-        return set()
-    with open(LOG_FILE, "r") as f:
-        return set(line.strip() for line in f if line.strip())
-
-def write_to_log(video_id):
-    with open(LOG_FILE, "a") as f:
-        f.write(video_id + "\n")
-
-def get_unuploaded_videos(drive):
-    uploaded = read_log()
-    file_list = drive.ListFile({'q': "mimeType contains 'video/' and trashed=false"}).GetList()
-    videos = []
-    for file in file_list:
-        if file['title'] not in uploaded:
-            videos.append(file)
-    return videos
-
-def get_optimal_publish_times(start_hour=16, count=3):
-    now = datetime.datetime.utcnow()
-    today = now.date()
-    base = datetime.datetime.combine(today, datetime.time(hour=start_hour))
-    times = []
-    offset_minutes = [0, 60, 120, 180, 240, 300]
-    random.shuffle(offset_minutes)
-
-    i = 0
-    while len(times) < count:
-        candidate = base + datetime.timedelta(minutes=offset_minutes[i % len(offset_minutes)])
-        if candidate > now + datetime.timedelta(minutes=15):  # ضمان أن الوقت مستقبلي بما يكفي
-            times.append(candidate.isoformat("T") + "Z")
-        else:
-            base += datetime.timedelta(days=1)
-        i += 1
-    return times
-
-def upload_video(youtube, file_path, title, publish_time):
-    body = {
-        "snippet": {
-            "title": title,
-            "description": "",
-            "tags": [],
-            "categoryId": "22",
+# إعداد التصريحات من Google API
+def get_youtube_service():
+    credentials = Credentials.from_authorized_user_info(
+        {
+            'client_id': os.getenv('YOUTUBE_CLIENT_ID'),
+            'client_secret': os.getenv('YOUTUBE_CLIENT_SECRET'),
+            'refresh_token': os.getenv('YOUTUBE_REFRESH_TOKEN'),
         },
-        "status": {
-            "privacyStatus": "public",
-            "publishAt": publish_time,
-            "madeForKids": False
-        },
-    }
-
-    media = MediaFileUpload(file_path, chunksize=-1, resumable=True)
-    request = youtube.videos().insert(
-        part=",".join(body.keys()),
-        body=body,
-        media_body=media,
+        scopes=["https://www.googleapis.com/auth/youtube.upload"]
     )
-    response = None
-    while response is None:
-        status, response = request.next_chunk()
-        if status:
-            print(f"Upload progress: {int(status.progress() * 100)}%")
+    youtube_service = build('youtube', 'v3', credentials=credentials)
+    return youtube_service
 
-    print(f"Upload complete: {response['id']}")
-    write_to_log(title)
+# رفع الفيديو إلى YouTube
+def upload_video_to_youtube(file_path, title, description, youtube_service):
+    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
+    request = youtube_service.videos().insert(
+        part="snippet,status",
+        body=dict(
+            snippet=dict(
+                title=title,
+                description=description,
+            ),
+            status=dict(
+                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
+            ),
+        ),
+        media_body=media
+    )
+
+    response = request.execute()
+    print(f"Video uploaded successfully! Video ID: {response['id']}")
+
+    # إضافة الفيديو إلى السجل بعد رفعه
+    add_uploaded_video_to_file(response['id'])
+
+# إضافة معرّف الفيديو إلى ملف السجل
+def add_uploaded_video_to_file(video_id):
+    with open("uploaded_videos.txt", "a") as file:
+        file.write(video_id + "\n")
+        file.flush()  # التأكد من الكتابة في الملف فورًا
+    print(f"Video ID {video_id} added to uploaded_videos.txt.")
+
+# التحقق مما إذا كان الفيديو قد تم رفعه
+def is_video_uploaded(video_id):
+    if os.path.exists("uploaded_videos.txt"):
+        with open("uploaded_videos.txt", "r") as file:
+            uploaded_videos = file.readlines()
+            return video_id + "\n" in uploaded_videos
+    return False
+
+# تنفيذ العملية
 def main():
-    youtube = get_authenticated_service()
-    drive = authenticate_drive()
-    videos = get_unuploaded_videos(drive)[:3]
-    publish_times = get_optimal_publish_times()
+    # معرف المجلد في Google Drive
+    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # ضع هنا معرف المجلد في Google Drive الذي يحتوي على الفيديوهات
 
-    for file, publish_time in zip(videos, publish_times):
-        file_path = file['title']
-        print(f"Downloading: {file['title']}")
-        file.GetContentFile(file_path)
-        upload_video(youtube, file_path, file['title'], publish_time)
-        os.remove(file_path)
+    # إعداد Google Drive API
+    drive_service = get_drive_service()
 
-if __name__ == "__main__":
+    # استرداد الملفات من المجلد
+    results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
+    files = results.get('files', [])
+
+    if not files:
+        print("No files found in this folder.")
+        return
+
+    # اختر الفيديو الأول من المجلد
+    video = files[0]
+    video_id = video['id']
+    video_name = video['name']
+
+    print(f"Found video: {video_name}, downloading...")
+
+    # التحقق إذا كان الفيديو قد تم تحميله
+    if is_video_uploaded(video_id):
+        print(f"Video {video_name} has already been uploaded. Skipping.")
+        return
+
+    # تنزيل الفيديو من Google Drive
+    downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
+
+    # إعداد YouTube API
+    youtube_service = get_youtube_service()
+
+    # رفع الفيديو إلى YouTube
+    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
+
+if __name__ == '__main__':
     main()
