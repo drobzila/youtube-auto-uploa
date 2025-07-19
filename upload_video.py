@@ -1,138 +1,105 @@
 import os
-import io
-import google.auth
+import pickle
+import random
+from datetime import datetime, timedelta
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
-from google.oauth2.credentials import Credentials
-from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-import datetime
+from googleapiclient.http import MediaFileUpload
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
 
-# إعداد تصاريح Google API من ملف الخدمة (service account)
-def get_drive_service():
-    credentials = ServiceAccountCredentials.from_service_account_info(
-        {
-            "type": "service_account",
-            "project_id": "able-rarity-466017-d7",
-            "private_key_id": "079b667528615f3d89d4e5ee88763e8bf4d0075b",
-            "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCufxjiyqBw8YSB\nfCVVulCVMYEuJ3f3Wqv+lwJszEi/qp4KbYS7iLNtiInoZbrGPMrGb5eN5DXjvjkB\ndu1Rw2iWlcuXyCRUWy3TiRG1Zcjmwx/NY/9fXmzWSi7bmN0w7vTKigmhDxsYJGSj\n3PBnrTE932DQWltAQ20XVnJPl/3ZZc6HJOanNAus6AjVVbCOQfQFxb71yFOkygE/\np2drYdR5tZBYHiwP+1Gr2WtczdhDXFgKCrQsiJcrjdzz244F87/OH0hTRNUhLaG6\neX1Eb7Djo+ACGutooSF0Y1PQa2hB7F+r9dPFL6Ge7BGFhhQPbebbO0bTgBUKIwoP\nFSQ6OLpjAgMBAAECggEARZ8/aimnpziuAk3qxZAvm79jR+uGgaJjUpKk7Iz7j8G/\nCfEVjw+la5QZVijUw0i5LUCUCxCdcc9RhmSRnthlMAP3dglseV3h5G9hqetBI9WB\nqFz4JPCTY1K47HRK+L223OMDoYfZ6yGGKB08rFkddw7b3XXXx8W/Tpr2xAwkRCsh\nYdLcRJgQrOD7gOtIkbnvGDUBE0IMNGn23Smwh6bpDkvdEDS7znmuYFaMNnvGtdXJ\nImZPKN+JpsdiOXiypownCkludgXIH0eVgLvGMxYPqKs4xqtV0sp8GPnjqlsv+tI+\n+n0tVei+U4RMSJQEyA4HLOgBKrefzhGzuJWtm60tlQKBgQDs1rtTW9A9xlz6n/sV\ndEk/lflxBqCRf1gtb5aDjGfGDuCQcWuVThA0dsLnKzKCWfuD0gWp/g+PWk2EPdaG\nCLN3T0zuk6r7dZPz3AElL/VpoZn252GKRoW37QOD7ZQvAy8ae8QXuoaQw1rEruQ0\ni86jIpNYejsrXnJKLtDVM5embQKBgQC8nSrVcBIT4bhOn84lPJg6jAC1dB7FdKuk\nEwaZRBxKbe+y7z3YWFr1joXDKMzyGp5HFzuUoh42Dvf6IQNU1xh4Z44yxOFkGUiA\nK4Q8JlohNLmkFZQKHwtrxCl3Do96O4plsweLlEGrOkMuUEwqdSswceo0kSdmXzWD\nFy5msfmiDwKBgFN8hmAmF0wPZqs6RcoUSdXOSjXbfjKLz0uE8GvCzLn2eJayRJhH\nAlNcIexXP+DPU2fuWuzHkDiaPoUFP1/UJV9DZv0atMUbd2IZBZZUR5BK1PlCKxIR\nNgXV2M1irD++QZZ2VnN+3vycwJxggjU7q0W6ZHJl9AGfs24O/rKJE0YpAoGATi7f\n+IVyGOex3HWFoA3UFEDAcnbl4neQRnzUeWewSnHzsDpXanyFh9BCRjl9asX54gIR\nYnUpDMN7qyVQGjTnIdHbMdRGkZWhZe+j6sMDDUyrvwZqzR89Pribb4yLkOFpZuql\nMAiOiAmom2QRjm/vLS+rI4sfx+GjbumHBG61yaUCgYEAyqp6KaH9EMU7wWVI08Xn\nIATOb2GkD/QHO3CCQdfMEulE8vorc8scuUkpPIJ/FHnTEn2aqcZIAQ7TwxUn9SPi\nf6lFEwYlddeLRg4KgtEDdXVywmTdt+/J/aEdWfEpxujmg7Ad9rYOD1YyvCY7SYgL\n+x05lczFEa5jD10b1h0K5LM=\n-----END PRIVATE KEY-----\n",
-            "client_email": "googeldrive-uploader-service-a@able-rarity-466017-d7.iam.gserviceaccount.com",
-            "client_id": "109947952583981958040",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/googeldrive-uploader-service-a%40able-rarity-466017-d7.iam.gserviceaccount.com",
-            "universe_domain": "googleapis.com"
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+CREDENTIALS_FILE = "credentials.json"
+TOKEN_FILE = "token.pickle"
+LOG_FILE = "log.txt"
+VIDEO_FOLDER = "videos"  # مجلد الفيديوهات داخل Google Drive
+
+# أوقات الذروة لليوتيوب حسب التوقيت المحلي (UTC+1)
+PEAK_TIMES = [
+    (12, 0),  # 12:00 ظهرًا
+    (18, 0),  # 18:00 مساءً
+    (21, 0)   # 21:00 مساءً
+]
+
+def authenticate():
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+    return build('youtube', 'v3', credentials=creds)
+
+def load_uploaded_titles():
+    if not os.path.exists(LOG_FILE):
+        return set()
+    with open(LOG_FILE, 'r', encoding='utf-8') as f:
+        return set(line.strip() for line in f)
+
+def save_uploaded_title(title):
+    with open(LOG_FILE, 'a', encoding='utf-8') as f:
+        f.write(title + '\n')
+
+def get_videos_to_upload():
+    all_files = [f for f in os.listdir(VIDEO_FOLDER) if f.endswith(('.mp4', '.mov', '.avi'))]
+    uploaded_titles = load_uploaded_titles()
+    return [f for f in all_files if f not in uploaded_titles][:3]
+
+def get_schedule_time(index):
+    now = datetime.utcnow() + timedelta(hours=1)  # الجزائر UTC+1
+    today = now.date()
+    hour, minute = PEAK_TIMES[index % len(PEAK_TIMES)]
+    schedule_time = datetime(today.year, today.month, today.day, hour, minute)
+    if schedule_time < now:
+        schedule_time += timedelta(days=1)  # إذا فات الوقت المجدول، اجل للغد
+    return schedule_time.isoformat("T") + ".000Z"
+
+def upload_video(youtube, file_name, schedule_time):
+    title = os.path.splitext(file_name)[0]
+    video_path = os.path.join(VIDEO_FOLDER, file_name)
+
+    body = {
+        'snippet': {
+            'title': title,
+            'description': 'تم الرفع تلقائيًا',
+            'tags': ['قرآن', 'تلاوة', 'اسلام'],
+            'categoryId': '27'
         },
-        scopes=["https://www.googleapis.com/auth/drive.readonly", "https://www.googleapis.com/auth/youtube.upload"]
-    )
-    return build('drive', 'v3', credentials=credentials)
+        'status': {
+            'privacyStatus': 'private',
+            'publishAt': schedule_time,
+            'selfDeclaredMadeForKids': True
+        }
+    }
 
-# تحميل الفيديو من Google Drive
-def download_video_from_drive(file_id, file_name, drive_service):
-    request = drive_service.files().get_media(fileId=file_id)
-    fh = io.FileIO(file_name, 'wb')
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-    while not done:
-        status, done = downloader.next_chunk()
-        print(f"Download {int(status.progress() * 100)}%.")
-    return file_name
+    media = MediaFileUpload(video_path, chunksize=-1, resumable=True)
+    request = youtube.videos().insert(part=','.join(body.keys()), body=body, media_body=media)
 
-# إعداد خدمة YouTube
-def get_youtube_service():
-    credentials = Credentials.from_authorized_user_info(
-        {
-            'client_id': os.getenv('YOUTUBE_CLIENT_ID'),
-            'client_secret': os.getenv('YOUTUBE_CLIENT_SECRET'),
-            'refresh_token': os.getenv('YOUTUBE_REFRESH_TOKEN'),
-        },
-        scopes=["https://www.googleapis.com/auth/youtube.upload"]
-    )
-    return build('youtube', 'v3', credentials=credentials)
+    response = None
+    while response is None:
+        status, response = request.next_chunk()
+        if status:
+            print(f"Progress: {int(status.progress() * 100)}%")
 
-# تسجيل الفيديو المرفوع في log.txt
-def add_uploaded_video_to_log(video_id, video_title):
-    with open("log.txt", "a", encoding="utf-8") as log_file:
-        log_file.write(f"{video_title} - Video ID: {video_id} - {datetime.datetime.now()}\n")
-        log_file.flush()
-    print(f"Video '{video_title}' with ID {video_id} added to log.")
+    print(f"✅ تم رفع الفيديو: {title} في {schedule_time}")
+    save_uploaded_title(file_name)
 
-# تسجيل video_id في uploaded_videos.txt
-def add_uploaded_video_to_file(video_id):
-    with open("uploaded_videos.txt", "a", encoding="utf-8") as file:
-        file.write(video_id + "\n")
-        file.flush()
-    print(f"Video ID {video_id} added to uploaded_videos.txt.")
-
-# التحقق من رفع الفيديو سابقًا عبر video_id
-def is_video_uploaded(video_id):
-    if os.path.exists("uploaded_videos.txt"):
-        with open("uploaded_videos.txt", "r", encoding="utf-8") as file:
-            return video_id + "\n" in file.readlines()
-    return False
-
-# التحقق من وجود العنوان في السجل log.txt
-def is_title_in_log(title):
-    if os.path.exists("log.txt"):
-        with open("log.txt", "r", encoding="utf-8") as log_file:
-            for line in log_file:
-                if title in line:
-                    return True
-    return False
-
-# رفع الفيديو إلى YouTube
-def upload_video_to_youtube(file_path, title, youtube_service):
-    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
-
-    request = youtube_service.videos().insert(
-        part="snippet,status",
-        body={
-            "snippet": {"title": title},
-            "status": {
-                "privacyStatus": "public",
-                "madeForKids": False
-            }
-        },
-        media_body=media
-    )
-
-    response = request.execute()
-    print(f"Video uploaded successfully! Video ID: {response['id']}")
-    add_uploaded_video_to_log(response['id'], title)
-
-# العملية الرئيسية
 def main():
-    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
-    drive_service = get_drive_service()
-    youtube_service = get_youtube_service()
+    youtube = authenticate()
+    videos = get_videos_to_upload()
 
-    results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
-    files = results.get('files', [])
-
-    if not files:
-        print("No files found in this folder.")
+    if not videos:
+        print("🚫 لا يوجد فيديوهات جديدة للرفع.")
         return
 
-    for video in files:
-        video_id = video['id']
-        video_name = video['name']
-
-        if is_video_uploaded(video_id):
-            print(f"Video '{video_name}' already uploaded by ID. Skipping.")
-            continue
-
-        if is_title_in_log(video_name):
-            print(f"Video '{video_name}' already exists in log by title. Skipping.")
-            continue
-
-        print(f"Downloading video: {video_name}")
-        downloaded_path = download_video_from_drive(video_id, video_name, drive_service)
-
-        print(f"Uploading to YouTube: {video_name}")
-        upload_video_to_youtube(downloaded_path, video_name, youtube_service)
-
-        add_uploaded_video_to_file(video_id)
-        break  # ارفع فيديو واحد فقط
+    for index, video in enumerate(videos):
+        schedule_time = get_schedule_time(index)
+        upload_video(youtube, video, schedule_time)
 
 if __name__ == '__main__':
     main()
