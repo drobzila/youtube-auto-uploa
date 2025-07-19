@@ -1,114 +1,98 @@
 import os
-import json
-import time
+import pickle
+import datetime
 import random
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from datetime import datetime, timedelta
 
-# تحميل الأسرار من متغيرات البيئة (GitHub Secrets)
-CLIENT_ID = os.environ["YOUTUBE_CLIENT_ID"]
-CLIENT_SECRET = os.environ["YOUTUBE_CLIENT_SECRET"]
-REFRESH_TOKEN = os.environ["YOUTUBE_REFRESH_TOKEN"]
+# إعدادات
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+FOLDER_PATH = "videos"
+LOG_FILE = "log.txt"
+DAILY_UPLOAD_COUNT = 3
 
-# إعداد الاعتماديات
+# تحميل بيانات الاعتماد
 def get_authenticated_service():
-    creds_data = {
-        "token": "",
-        "refresh_token": REFRESH_TOKEN,
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "scopes": ["https://www.googleapis.com/auth/youtube.upload"]
-    }
-
-    creds = Credentials.from_authorized_user_info(info=creds_data)
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+    creds = None
+    if os.path.exists("token_upload.pickle"):
+        with open("token_upload.pickle", "rb") as token:
+            creds = pickle.load(token)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", SCOPES)
+            creds = flow.run_console()
+        with open("token_upload.pickle", "wb") as token:
+            pickle.dump(creds, token)
     return build("youtube", "v3", credentials=creds)
 
-# تحميل فيديو إلى يوتيوب
-def upload_video(youtube, file_path, title, description, publish_time):
-    request_body = {
-        "snippet": {
-            "title": title,
-            "description": description,
-            "tags": ["Quran", "Islam", "Recitation"],
-            "categoryId": "27"
-        },
-        "status": {
-            "privacyStatus": "public",
-            "publishAt": publish_time.isoformat("T") + "Z",
-            "selfDeclaredMadeForKids": False,
-        }
-    }
+# تسجيل الفيديوات المرفوعة
+def save_to_log(video_title, video_id):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{video_id}|{video_title}\n")
 
-    media = MediaFileUpload(file_path, chunksize=-1, resumable=True)
+def load_uploaded_videos():
+    if not os.path.exists(LOG_FILE):
+        return set()
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        return set(line.strip().split("|")[1] for line in f.readlines())
 
+# رفع فيديو
+def upload_video(youtube, file_path, title, publish_time):
+    print(f"🚀 Uploading: {title} | Scheduled at {publish_time}")
     request = youtube.videos().insert(
         part="snippet,status",
-        body=request_body,
-        media_body=media
+        body={
+            "snippet": {
+                "title": title,
+                "categoryId": "22"
+            },
+            "status": {
+                "privacyStatus": "private",
+                "publishAt": publish_time.isoformat(),
+                "selfDeclaredMadeForKids": False
+            }
+        },
+        media_body=MediaFileUpload(file_path, resumable=True)
     )
-
     response = None
     while response is None:
         status, response = request.next_chunk()
-        if status:
-            print(f"Upload progress: {int(status.progress() * 100)}%")
-    print(f"✅ Uploaded: {title}")
+    video_id = response["id"]
+    save_to_log(video_id, title)
 
-    return response["id"]
+# توليد أوقات النشر
+def generate_publish_times(count):
+    base = datetime.datetime.utcnow().replace(hour=16, minute=0, second=0, microsecond=0)
+    if datetime.datetime.utcnow() > base:
+        base += datetime.timedelta(days=1)
+    return [base + datetime.timedelta(minutes=i * 30) for i in range(count)]
 
-# قراءة سجل الفيديوهات
-def read_uploaded_log():
-    if not os.path.exists("log.txt"):
-        return set()
-    with open("log.txt", "r") as f:
-        return set(line.strip() for line in f)
-
-def append_to_log(title):
-    with open("log.txt", "a") as f:
-        f.write(f"{title}\n")
-
-# توليد أوقات مثالية للنشر
-def generate_best_times(n):
-    base = datetime.utcnow().replace(hour=17, minute=0, second=0, microsecond=0)
-    return [base + timedelta(minutes=rand) for rand in sorted(random.sample(range(60*5), n))]
-
+# البرنامج الرئيسي
 def main():
     youtube = get_authenticated_service()
+    uploaded_titles = load_uploaded_videos()
 
-    uploaded = read_uploaded_log()
-    videos = sorted(os.listdir("videos"))
+    all_videos = [f for f in os.listdir(FOLDER_PATH) if f.endswith(".mp4")]
     to_upload = []
-
-    # اختيار 3 فيديوهات جديدة فقط
-    for file in videos:
-        if not file.lower().endswith(".mp4"):
-            continue
-        title = os.path.splitext(file)[0]
-        if title not in uploaded:
-            to_upload.append((file, title))
-        if len(to_upload) == 3:
+    for f in all_videos:
+        title = os.path.splitext(f)[0]
+        if title not in uploaded_titles:
+            to_upload.append((os.path.join(FOLDER_PATH, f), title))
+        if len(to_upload) == DAILY_UPLOAD_COUNT:
             break
 
     if not to_upload:
         print("✅ No new videos to upload.")
         return
 
-    publish_times = generate_best_times(len(to_upload))
+    publish_times = generate_publish_times(len(to_upload))
 
-    for i, (file, title) in enumerate(to_upload):
-        file_path = os.path.join("videos", file)
-        publish_time = publish_times[i]
-        description = "تلاوة قرآنية مباركة بصوت ندي"
-
-        print(f"🚀 Uploading: {title} | Scheduled at {publish_time}")
-        upload_video(youtube, file_path, title, description, publish_time)
-        append_to_log(title)
+    for (file_path, title), publish_time in zip(to_upload, publish_times):
+        upload_video(youtube, file_path, title, publish_time)
 
 if __name__ == "__main__":
     main()
