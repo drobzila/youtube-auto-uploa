@@ -15,7 +15,7 @@ def get_drive_service():
             "type": "service_account",
             "project_id": "able-rarity-466017-d7",
             "private_key_id": "079b667528615f3d89d4e5ee88763e8bf4d0075b",
-            "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCufxjiyqBw8YSB\nfCVVulCVMYEuJ3f3Wqv+lwJszEi/qp4KbYS7iLNtiInoZbrGPMrGb5eN5DXjvjkB\ndu1Rw2iWlcuXyCRUWy3TiRG1Zcjmwx/NY/9fXmzWSi7bmN0w7vTKigmhDxsYJGSj\n3PBnrTE932DQWltAQ20XVnJPl/3ZZc6HJOanNAus6AjVVbCOQfQFxb71yFOkygE/\np2drYdR5tZBYHiwP+1Gr2WtczdhDXFgKCrQsiJcrjdzz244F87/OH0hTRNUhLaG6\neX1Eb7Djo+ACGutooSF0Y1PQa2hB7F+r9dPFL6Ge7BGFhhQPbebbO0bTgBUKIwoP\nFSQ6OLpjAgMBAAECggEARZ8/aimnpziuAk3qxZAvm79jR+uGgaJjUpKk7Iz7j8G/\nCfEVjw+la5QZVijUw0i5LUCUCxCdcc9RhmSRnthlMAP3dglseV3h5G9hqetBI9WB\nqFz4JPCTY1K47HRK+L223OMDoYfZ6yGGKB08rFkddw7b3XXXx8W/Tpr2xAwkRCsh\nYdLcRJgQrOD7gOtIkbnvGDUBE0IMNGn23Smwh6bpDkvdEDS7znmuYFaMNnvGtdXJ\nImZPKN+JpsdiOXiypownCkludgXIH0eVgLvGMxYPqKs4xqtV0sp8GPnjqlsv+tI+\n+n0tVei+U4RMSJQEyA4HLOgBKrefzhGzuJWtm60tlQKBgQDs1rtTW9A9xlz6n/sV\ndEk/lflxBqCRf1gtb5aDjGfGDuCQcWuVThA0dsLnKzKCWfuD0gWp/g+PWk2EPdaG\nCLN3T0zuk6r7dZPz3AElL/VpoZn252GKRoW37QOD7ZQvAy8ae8QXuoaQw1rEruQ0\ni86jIpNYejsrXnJKLtDVM5embQKBgQC8nSrVcBIT4bhOn84lPJg6jAC1dB7FdKuk\nEwaZRBxKbe+y7z3YWFr1joXDKMzyGp5HFzuUoh42Dvf6IQNU1xh4Z44yxOFkGUiA\nK4Q8JlohNLmkFZQKHwtrxCl3Do96O4plsweLlEGrOkMuUEwqdSswceo0kSdmXzWD\nFy5msfmiDwKBgFN8hmAmF0wPZqs6RcoUSdXOSjXbfjKLz0uE8GvCzLn2eJayRJhH\nAlNcIexXP+DPU2fuWuzHkDiaPoUFP1/UJV9DZv0atMUbd2IZBZZUR5BK1PlCKxIR\nNgXV2M1irD++QZZ2VnN+3vycwJxggjU7q0W6ZHJl9AGfs24O/rKJE0YpAoGATi7f\n+IVyGOex3HWFoA3UFEDAcnbl4neQRnzUeWewSnHzsDpXanyFh9BCRjl9asX54gIR\nYnUpDMN7qyVQGjTnIdHbMdRGkZWhZe+j6sMDDUyrvwZqzR89Pribb4yLkOFpZuql\nMAiOiAmom2QRjm/vLS+rI4sfx+GjbumHBG61yaUCgYEAyqp6KaH9EMU7wWVI08Xn\nIATOb2GkD/QHO3CCQdfMEulE8vorc8scuUkpPIJ/FHnTEn2aqcZIAQ7TwxUn9SPi\nf6lFEwYlddeLRg4KgtEDdXVywmTdt+/J/aEdWfEpxujmg7Ad9rYOD1YyvCY7SYgL\n+x05lczFEa5jD10b1h0K5LM=\n-----END PRIVATE KEY-----\n",
+            "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
             "client_email": "googeldrive-uploader-service-a@able-rarity-466017-d7.iam.gserviceaccount.com",
             "client_id": "109947952583981958040",
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -51,31 +51,30 @@ def download_video_from_drive(file_id, file_name, drive_service):
         status, done = downloader.next_chunk()
     return file_name
 
-# رفع فيديو إلى YouTube
-def upload_video_to_youtube(file_path, title, youtube_service):
+# رفع فيديو إلى YouTube مع جدولة النشر
+def upload_video_to_youtube(file_path, title, youtube_service, publish_datetime):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
+
     request = youtube_service.videos().insert(
         part="snippet,status",
         body={
-            "snippet": {"title": title},
-            "status": {"privacyStatus": "public", "madeForKids": False}
+            "snippet": {
+                "title": title,
+                "publishAt": publish_datetime.isoformat() + "Z"  # صيغة UTC ISO
+            },
+            "status": {
+                "privacyStatus": "private",  # سيُنشر تلقائيًا في وقت publishAt
+                "selfDeclaredMadeForKids": False,
+                "publishAt": publish_datetime.isoformat() + "Z"
+            }
         },
         media_body=media
     )
-    response = request.execute()
-    print(f"✅ Uploaded {title} - Video ID: {response['id']}")
-    with open("log.txt", "a", encoding="utf-8") as log_file:
-        log_file.write(f"{title} - Video ID: {response['id']} - {datetime.datetime.now()}\n")
 
-# الانتظار حتى وقت معين
-def wait_until(hour, minute):
-    target = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))\
-        .replace(hour=hour, minute=minute, second=0, microsecond=0)
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))
-    delay = (target - now).total_seconds()
-    if delay > 0:
-        print(f"🕒 Waiting until {hour}:{minute:02d}...")
-        time.sleep(delay)
+    response = request.execute()
+    print(f"✅ Scheduled {title} for {publish_datetime} UTC - Video ID: {response['id']}")
+    with open("log.txt", "a", encoding="utf-8") as log_file:
+        log_file.write(f"{title} - Scheduled at: {publish_datetime} UTC - Video ID: {response['id']} - Logged at: {datetime.datetime.utcnow().isoformat()}Z\n")
 
 # البرنامج الرئيسي
 def main():
@@ -90,23 +89,22 @@ def main():
         print("❗ يلزم وجود على الأقل 3 فديوهات في المجلد.")
         return
 
-    # الفيديو الأول - 12:00
-    wait_until(12, 0)
-    video1 = files[0]
-    path1 = download_video_from_drive(video1['id'], video1['name'], drive_service)
-    upload_video_to_youtube(path1, video1['name'], youtube_service)
+    # ضبط التواريخ بالنشر المجدول (بتوقيت الجزائر UTC+1)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    dates = [
+        datetime.datetime.combine(now.date(), datetime.time(12, 0), tzinfo=datetime.timezone(datetime.timedelta(hours=1))),
+        datetime.datetime.combine(now.date(), datetime.time(16, 0), tzinfo=datetime.timezone(datetime.timedelta(hours=1))),
+        datetime.datetime.combine(now.date(), datetime.time(21, 0), tzinfo=datetime.timezone(datetime.timedelta(hours=1)))
+    ]
 
-    # الفيديو الثاني - 16:00
-    wait_until(16, 0)
-    video2 = files[1]
-    path2 = download_video_from_drive(video2['id'], video2['name'], drive_service)
-    upload_video_to_youtube(path2, video2['name'], youtube_service)
+    # تحويل التواريخ إلى UTC (مطلوب من YouTube API)
+    dates_utc = [d.astimezone(datetime.timezone.utc) for d in dates]
 
-    # الفيديو الثالث - 21:00
-    wait_until(21, 0)
-    video3 = files[2]
-    path3 = download_video_from_drive(video3['id'], video3['name'], drive_service)
-    upload_video_to_youtube(path3, video3['name'], youtube_service)
+    # رفع وجدولة الفيديوهات
+    for i in range(3):
+        video = files[i]
+        path = download_video_from_drive(video['id'], video['name'], drive_service)
+        upload_video_to_youtube(path, video['name'], youtube_service, dates_utc[i])
 
 if __name__ == "__main__":
     main()
