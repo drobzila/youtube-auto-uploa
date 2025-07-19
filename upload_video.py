@@ -11,7 +11,7 @@ from google.auth.transport.requests import Request
 # إعداد Google Drive API
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
-       {
+        {
             "type": "service_account",
             "project_id": "able-rarity-466017-d7",
             "private_key_id": "079b667528615f3d89d4e5ee88763e8bf4d0075b",
@@ -24,7 +24,7 @@ def get_drive_service():
             "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/googeldrive-uploader-service-a%40able-rarity-466017-d7.iam.gserviceaccount.com",
             "universe_domain": "googleapis.com"
         },
-       scopes=["https://www.googleapis.com/auth/drive"]
+        scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build('drive', 'v3', credentials=credentials)
 
@@ -40,7 +40,7 @@ def get_youtube_service():
     )
     creds.refresh(Request())
     return build('youtube', 'v3', credentials=creds)
-    
+
 # تحميل فيديو
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
@@ -67,41 +67,48 @@ def upload_video_to_youtube(file_path, title, youtube_service):
     with open("log.txt", "a", encoding="utf-8") as log_file:
         log_file.write(f"{title} - Video ID: {response['id']} - {datetime.datetime.now()}\n")
 
-# الانتظار حتى وقت معين (بالساعة والدقيقة) بتوقيت الجزائر
+# الانتظار حتى وقت معين (بالساعة والدقيقة) بتوقيت الجزائر (UTC+1)
 def wait_until(hour, minute):
-    target = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))\
-        .replace(hour=hour, minute=minute, second=0, microsecond=0)
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))
+    tz = datetime.timezone(datetime.timedelta(hours=1))  # توقيت الجزائر
+    now = datetime.datetime.now(tz)
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if target <= now:
+        target += datetime.timedelta(days=1)
     delay = (target - now).total_seconds()
-    if delay > 0:
-        print(f"🕒 Waiting until {hour}:{minute:02d}...")
-        time.sleep(delay)
+    print(f"🕒 Waiting until {hour:02d}:{minute:02d}...")
+    time.sleep(delay)
+
+# قراءة العناوين المرفوعة من السجل
+def get_uploaded_titles():
+    if not os.path.exists("log.txt"):
+        return set()
+    with open("log.txt", "r", encoding="utf-8") as log:
+        return set(line.split(" - ")[0].strip() for line in log.readlines())
 
 def main():
-    # إعداد الخدمات
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
+    uploaded_titles = get_uploaded_titles()
 
-    # جلب الفيديوهات من Google Drive
     folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
     results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
-    files = results.get('files', [])
+    all_files = results.get('files', [])
 
-    if len(files) < 2:
-        print("❗ يلزم وجود على الأقل فديوهين في المجلد.")
+    # استثناء الملفات المكررة
+    new_videos = [f for f in all_files if f['name'] not in uploaded_titles]
+
+    if len(new_videos) < 3:
+        print("❗ يجب توفر 3 فيديوهات جديدة على الأقل.")
         return
 
-    # رفع الفيديو الأول عند 15:45
-    wait_until(15, 45)
-    video1 = files[0]
-    path1 = download_video_from_drive(video1['id'], video1['name'], drive_service)
-    upload_video_to_youtube(path1, video1['name'], youtube_service)
+    schedule = [(12, 0), (16, 0), (21, 0)]
 
-    # رفع الفيديو الثاني عند 15:50
-    wait_until(15, 50)
-    video2 = files[1]
-    path2 = download_video_from_drive(video2['id'], video2['name'], drive_service)
-    upload_video_to_youtube(path2, video2['name'], youtube_service)
+    for i in range(3):
+        hour, minute = schedule[i]
+        video = new_videos[i]
+        wait_until(hour, minute)
+        path = download_video_from_drive(video['id'], video['name'], drive_service)
+        upload_video_to_youtube(path, video['name'], youtube_service)
 
 if __name__ == "__main__":
     main()
