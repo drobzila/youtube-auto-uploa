@@ -51,28 +51,32 @@ def download_video_from_drive(file_id, file_name, drive_service):
     return file_name
 
 # رفع فيديو إلى YouTube مع جدولة
-def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service):
-    body = {
-        "snippet": {
-            "title": title
-        },
-        "status": {
-            "privacyStatus": "private",
-            "publishAt": scheduled_datetime.isoformat(),
-            "selfDeclaredMadeForKids": False
+def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service, log_file):
+    try:
+        body = {
+            "snippet": {
+                "title": title
+            },
+            "status": {
+                "privacyStatus": "private",
+                "publishAt": scheduled_datetime.isoformat(),
+                "selfDeclaredMadeForKids": False
+            }
         }
-    }
 
-    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
-    request = youtube_service.videos().insert(
-        part="snippet,status",
-        body=body,
-        media_body=media
-    )
-    response = request.execute()
-    print(f"✅ Uploaded and scheduled: {title} at {scheduled_datetime.time()} - Video ID: {response['id']}")
-    with open("log.txt", "a", encoding="utf-8") as log_file:
-        log_file.write(f"{title} - {response['id']} - {scheduled_datetime}\n")
+        media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
+        request = youtube_service.videos().insert(
+            part="snippet,status",
+            body=body,
+            media_body=media
+        )
+        response = request.execute()
+        video_id = response['id']
+        print(f"✅ Uploaded and scheduled: {title} at {scheduled_datetime.time()} - Video ID: {video_id}")
+        log_file.write(f"{title} - {video_id} - {scheduled_datetime.isoformat()}\n")
+    except Exception as e:
+        print(f"❌ فشل رفع الفيديو {title}: {e}")
+        log_file.write(f"{title} - FAILED - {scheduled_datetime.isoformat()} - Error: {e}\n")
 
 # التحقق من وجود فيديو في السجل
 def is_already_uploaded(title):
@@ -85,7 +89,6 @@ def main():
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
 
-    # مجلد Google Drive
     folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
     results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
     files = results.get('files', [])
@@ -94,7 +97,6 @@ def main():
         print("❗ لا توجد فيديوهات في المجلد.")
         return
 
-    # توقيتات النشر (بتوقيت الجزائر UTC+1)
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))).date()
     times = [datetime.time(12, 0), datetime.time(16, 0), datetime.time(21, 0)]
     schedule = [
@@ -103,22 +105,25 @@ def main():
     ]
 
     uploaded_count = 0
-    for file, sched_time in zip(files, schedule):
-        # تجاوز الفيديوهات التي مضى وقت نشرها
-        if sched_time <= datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))):
-            print(f"⏩ تجاوز {file['name']} لأن وقته {sched_time.time()} قد مر.")
-            continue
 
-        if is_already_uploaded(file['name']):
-            print(f"⚠️ {file['name']} موجود في السجل. سيتم تخطيه.")
-            continue
+    with open("log.txt", "a", encoding="utf-8") as log_file:
+        for file, sched_time in zip(files, schedule):
+            if sched_time <= datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))):
+                print(f"⏩ تجاوز {file['name']} لأن وقته {sched_time.time()} قد مر.")
+                log_file.write(f"{file['name']} - SKIPPED - {sched_time.isoformat()} - Passed time\n")
+                continue
 
-        path = download_video_from_drive(file['id'], file['name'], drive_service)
-        upload_video_to_youtube(path, file['name'], sched_time, youtube_service)
-        uploaded_count += 1
+            if is_already_uploaded(file['name']):
+                print(f"⚠️ {file['name']} موجود في السجل. سيتم تخطيه.")
+                log_file.write(f"{file['name']} - SKIPPED - Already logged\n")
+                continue
 
-        if uploaded_count >= 3:
-            break
+            path = download_video_from_drive(file['id'], file['name'], drive_service)
+            upload_video_to_youtube(path, file['name'], sched_time, youtube_service, log_file)
+            uploaded_count += 1
+
+            if uploaded_count >= 3:
+                break
 
     if uploaded_count == 0:
         print("✅ لا توجد فيديوهات مناسبة للرفع اليوم.")
