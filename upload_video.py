@@ -1,13 +1,12 @@
 import os
 import io
-import datetime
+import google.auth
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-from google.auth.transport.requests import Request
 
-# إعداد Google Drive API
+# إعداد تصاريح Google API من ملف الخدمة (service account)
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
         {
@@ -23,110 +22,110 @@ def get_drive_service():
             "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/googeldrive-uploader-service-a%40able-rarity-466017-d7.iam.gserviceaccount.com",
             "universe_domain": "googleapis.com"
         },
-        scopes=["https://www.googleapis.com/auth/drive"]
+        scopes=["https://www.googleapis.com/auth/drive.readonly", "https://www.googleapis.com/auth/youtube.upload"]
     )
-    return build('drive', 'v3', credentials=credentials)
+    drive_service = build('drive', 'v3', credentials=credentials)
+    return drive_service
 
-# إعداد YouTube API
-def get_youtube_service():
-    creds = Credentials(
-        None,
-        refresh_token=os.getenv('YOUTUBE_REFRESH_TOKEN'),
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.getenv('YOUTUBE_CLIENT_ID'),
-        client_secret=os.getenv('YOUTUBE_CLIENT_SECRET'),
-        scopes=["https://www.googleapis.com/auth/youtube.upload"]
-    )
-    creds.refresh(Request())
-    return build('youtube', 'v3', credentials=creds)
-
-# تحميل فيديو من Google Drive
+# تحميل الفيديو من Google Drive
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.FileIO(file_name, 'wb')
     downloader = MediaIoBaseDownload(fh, request)
     done = False
-    while not done:
+    while done is False:
         status, done = downloader.next_chunk()
+        print(f"Download {int(status.progress() * 100)}%.")
     return file_name
 
-# رفع فيديو إلى YouTube مع جدولة
-def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service, log_file):
-    try:
-        body = {
-            "snippet": {
-                "title": title
-            },
-            "status": {
-                "privacyStatus": "private",
-                "publishAt": scheduled_datetime.isoformat(),
-                "selfDeclaredMadeForKids": False
-            }
-        }
+# إعداد التصريحات من Google API
+def get_youtube_service():
+    credentials = Credentials.from_authorized_user_info(
+        {
+            'client_id': os.getenv('YOUTUBE_CLIENT_ID'),
+            'client_secret': os.getenv('YOUTUBE_CLIENT_SECRET'),
+            'refresh_token': os.getenv('YOUTUBE_REFRESH_TOKEN'),
+        },
+        scopes=["https://www.googleapis.com/auth/youtube.upload"]
+    )
+    youtube_service = build('youtube', 'v3', credentials=credentials)
+    return youtube_service
 
-        media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
-        request = youtube_service.videos().insert(
-            part="snippet,status",
-            body=body,
-            media_body=media
-        )
-        response = request.execute()
-        video_id = response['id']
-        print(f"✅ Uploaded and scheduled: {title} at {scheduled_datetime.time()} - Video ID: {video_id}")
-        log_file.write(f"{title} - {video_id} - {scheduled_datetime.isoformat()}\n")
-    except Exception as e:
-        print(f"❌ فشل رفع الفيديو {title}: {e}")
-        log_file.write(f"{title} - FAILED - {scheduled_datetime.isoformat()} - Error: {e}\n")
+# رفع الفيديو إلى YouTube
+def upload_video_to_youtube(file_path, title, description, youtube_service):
+    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
 
-# التحقق من وجود فيديو في السجل
-def is_already_uploaded(title):
-    if os.path.exists("log.txt"):
-        with open("log.txt", "r", encoding="utf-8") as f:
-            return title in f.read()
+    request = youtube_service.videos().insert(
+        part="snippet,status",
+        body=dict(
+            snippet=dict(
+                title=title,
+                description=description,
+            ),
+            status=dict(
+                privacyStatus="public",  # يمكنك تغييرها إلى "private" أو "unlisted" حسب رغبتك
+            ),
+        ),
+        media_body=media
+    )
+
+    response = request.execute()
+    print(f"Video uploaded successfully! Video ID: {response['id']}")
+
+    # إضافة الفيديو إلى السجل بعد رفعه
+    add_uploaded_video_to_file(response['id'])
+
+# إضافة معرّف الفيديو إلى ملف السجل
+def add_uploaded_video_to_file(video_id):
+    with open("uploaded_videos.txt", "a") as file:
+        file.write(video_id + "\n")
+        file.flush()  # التأكد من الكتابة في الملف فورًا
+    print(f"Video ID {video_id} added to uploaded_videos.txt.")
+
+# التحقق مما إذا كان الفيديو قد تم رفعه
+def is_video_uploaded(video_id):
+    if os.path.exists("uploaded_videos.txt"):
+        with open("uploaded_videos.txt", "r") as file:
+            uploaded_videos = file.readlines()
+            return video_id + "\n" in uploaded_videos
     return False
 
+# تنفيذ العملية
 def main():
-    drive_service = get_drive_service()
-    youtube_service = get_youtube_service()
+    # معرف المجلد في Google Drive
+    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'  # ضع هنا معرف المجلد في Google Drive الذي يحتوي على الفيديوهات
 
-    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
+    # إعداد Google Drive API
+    drive_service = get_drive_service()
+
+    # استرداد الملفات من المجلد
     results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
     files = results.get('files', [])
 
-    if len(files) < 1:
-        print("❗ لا توجد فيديوهات في المجلد.")
+    if not files:
+        print("No files found in this folder.")
         return
 
-    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))).date()
-    times = [datetime.time(12, 0), datetime.time(16, 0), datetime.time(21, 0)]
-    schedule = [
-        datetime.datetime.combine(today, t, tzinfo=datetime.timezone(datetime.timedelta(hours=1)))
-        for t in times
-    ]
+    # اختر الفيديو الأول من المجلد
+    video = files[0]
+    video_id = video['id']
+    video_name = video['name']
 
-    uploaded_count = 0
+    print(f"Found video: {video_name}, downloading...")
 
-    with open("log.txt", "a", encoding="utf-8") as log_file:
-        for file, sched_time in zip(files, schedule):
-            if sched_time <= datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))):
-                print(f"⏩ تجاوز {file['name']} لأن وقته {sched_time.time()} قد مر.")
-                log_file.write(f"{file['name']} - SKIPPED - {sched_time.isoformat()} - Passed time\n")
-                continue
+    # التحقق إذا كان الفيديو قد تم تحميله
+    if is_video_uploaded(video_id):
+        print(f"Video {video_name} has already been uploaded. Skipping.")
+        return
 
-            if is_already_uploaded(file['name']):
-                print(f"⚠️ {file['name']} موجود في السجل. سيتم تخطيه.")
-                log_file.write(f"{file['name']} - SKIPPED - Already logged\n")
-                continue
+    # تنزيل الفيديو من Google Drive
+    downloaded_video_path = download_video_from_drive(video_id, video_name, drive_service)
 
-            path = download_video_from_drive(file['id'], file['name'], drive_service)
-            upload_video_to_youtube(path, file['name'], sched_time, youtube_service, log_file)
-            uploaded_count += 1
+    # إعداد YouTube API
+    youtube_service = get_youtube_service()
 
-            if uploaded_count >= 3:
-                break
+    # رفع الفيديو إلى YouTube
+    upload_video_to_youtube(downloaded_video_path, 'Test Video from Drive', 'This video was uploaded from Google Drive using script.', youtube_service)
 
-    if uploaded_count == 0:
-        print("✅ لا توجد فيديوهات مناسبة للرفع اليوم.")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
