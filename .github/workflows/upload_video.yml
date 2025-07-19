@@ -24,11 +24,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2 pydrive2
-
     - name: Upload video to YouTube
       run: |
         python upload_video.py
