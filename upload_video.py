@@ -4,8 +4,8 @@ import time
 import datetime
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
-from google.oauth2.service_account import Credentials
-from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+from google.oauth2.credentials import Credentials as UserCredentials
+from google.auth.transport.requests import Request
 
 # إعداد Google Drive API
 def get_drive_service():
@@ -29,16 +29,16 @@ def get_drive_service():
     
 # إعداد YouTube API
 def get_youtube_service():
-    credentials = Credentials.from_authorized_user_info(
-        {
-            'client_id': os.getenv('YOUTUBE_CLIENT_ID'),
-            'client_secret': os.getenv('YOUTUBE_CLIENT_SECRET'),
-            'refresh_token': os.getenv('YOUTUBE_REFRESH_TOKEN'),
-        },
-        scopes=["https://www.googleapis.com/auth/youtube.upload"]
+    credentials = UserCredentials(
+        client_id=os.getenv('YOUTUBE_CLIENT_ID'),
+        client_secret=os.getenv('YOUTUBE_CLIENT_SECRET'),
+        refresh_token=os.getenv('YOUTUBE_REFRESH_TOKEN'),
+        token_uri="https://oauth2.googleapis.com/token"
     )
-    return build('youtube', 'v3', credentials=credentials)
-
+    credentials.refresh(Request())
+    youtube_service = build('youtube', 'v3', credentials=credentials)
+    return youtube_service
+    
 # تحميل فيديو
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
