@@ -1,7 +1,7 @@
 name: Delete Videos from Google Drive
 
 on:
-  workflow_dispatch:  # يشغله المستخدم يدويًا من الواجهة
+  workflow_dispatch:
 
 jobs:
   delete:
@@ -20,5 +20,5 @@ jobs:
         run: |
           pip install google-api-python-client google-auth google-auth-oauthlib
 
-      - name: Run the deletion script
+      - name: Run deletion script
         run: python youtube.py
