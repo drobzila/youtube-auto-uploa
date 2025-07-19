@@ -5,11 +5,12 @@ import datetime
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials as UserCredentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.auth.transport.requests import Request
 
 # إعداد Google Drive API
 def get_drive_service():
-    credentials = Credentials.from_service_account_info(
+    credentials = ServiceAccountCredentials.from_service_account_info(
        {
             "type": "service_account",
             "project_id": "able-rarity-466017-d7",
@@ -23,10 +24,10 @@ def get_drive_service():
             "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/googeldrive-uploader-service-a%40able-rarity-466017-d7.iam.gserviceaccount.com",
             "universe_domain": "googleapis.com"
         },
-        scopes=["https://www.googleapis.com/auth/drive"]
+       scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build('drive', 'v3', credentials=credentials)
-    
+
 # إعداد YouTube API
 def get_youtube_service():
     credentials = UserCredentials(
@@ -36,9 +37,8 @@ def get_youtube_service():
         token_uri="https://oauth2.googleapis.com/token"
     )
     credentials.refresh(Request())
-    youtube_service = build('youtube', 'v3', credentials=credentials)
-    return youtube_service
-    
+    return build('youtube', 'v3', credentials=credentials)
+
 # تحميل فيديو
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
@@ -89,14 +89,14 @@ def main():
         print("❗ يلزم وجود على الأقل فديوهين في المجلد.")
         return
 
-    # رفع الفيديو الأول عند 15:35
-    wait_until(15, 35)
+    # رفع الفيديو الأول عند 15:45
+    wait_until(15, 45)
     video1 = files[0]
     path1 = download_video_from_drive(video1['id'], video1['name'], drive_service)
     upload_video_to_youtube(path1, video1['name'], youtube_service)
 
-    # رفع الفيديو الثاني عند 15:40
-    wait_until(15, 40)
+    # رفع الفيديو الثاني عند 15:50
+    wait_until(15, 50)
     video2 = files[1]
     path2 = download_video_from_drive(video2['id'], video2['name'], drive_service)
     upload_video_to_youtube(path2, video2['name'], youtube_service)
