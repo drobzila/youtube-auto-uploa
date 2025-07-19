@@ -30,15 +30,17 @@ def get_drive_service():
 
 # إعداد YouTube API
 def get_youtube_service():
-    credentials = UserCredentials(
+    creds = Credentials(
+        None,
+        refresh_token=os.getenv('YOUTUBE_REFRESH_TOKEN'),
+        token_uri="https://oauth2.googleapis.com/token",
         client_id=os.getenv('YOUTUBE_CLIENT_ID'),
         client_secret=os.getenv('YOUTUBE_CLIENT_SECRET'),
-        refresh_token=os.getenv('YOUTUBE_REFRESH_TOKEN'),
-        token_uri="https://oauth2.googleapis.com/token"
+        scopes=["https://www.googleapis.com/auth/youtube.upload"]
     )
-    credentials.refresh(Request())
-    return build('youtube', 'v3', credentials=credentials)
-
+    creds.refresh(Request())
+    return build('youtube', 'v3', credentials=creds)
+    
 # تحميل فيديو
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
