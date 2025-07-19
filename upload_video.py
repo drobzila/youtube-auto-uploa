@@ -1,3 +1,4 @@
+import os
 import io
 import time
 import datetime
@@ -10,7 +11,7 @@ from google.auth.transport.requests import Request
 # إعداد Google Drive API
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
-       {
+        {
             "type": "service_account",
             "project_id": "able-rarity-466017-d7",
             "private_key_id": "079b667528615f3d89d4e5ee88763e8bf4d0075b",
@@ -23,7 +24,7 @@ def get_drive_service():
             "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/googeldrive-uploader-service-a%40able-rarity-466017-d7.iam.gserviceaccount.com",
             "universe_domain": "googleapis.com"
         },
-       scopes=["https://www.googleapis.com/auth/drive"]
+        scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build('drive', 'v3', credentials=credentials)
 
@@ -39,8 +40,8 @@ def get_youtube_service():
     )
     creds.refresh(Request())
     return build('youtube', 'v3', credentials=creds)
-    
-# تحميل فيديو
+
+# تحميل فيديو من Google Drive
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.FileIO(file_name, 'wb')
@@ -50,7 +51,7 @@ def download_video_from_drive(file_id, file_name, drive_service):
         status, done = downloader.next_chunk()
     return file_name
 
-# رفع فيديو
+# رفع فيديو إلى YouTube
 def upload_video_to_youtube(file_path, title, youtube_service):
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
     request = youtube_service.videos().insert(
@@ -66,7 +67,7 @@ def upload_video_to_youtube(file_path, title, youtube_service):
     with open("log.txt", "a", encoding="utf-8") as log_file:
         log_file.write(f"{title} - Video ID: {response['id']} - {datetime.datetime.now()}\n")
 
-# الانتظار حتى وقت معين (بالساعة والدقيقة) بتوقيت الجزائر
+# الانتظار حتى وقت معين
 def wait_until(hour, minute):
     target = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))\
         .replace(hour=hour, minute=minute, second=0, microsecond=0)
@@ -76,31 +77,36 @@ def wait_until(hour, minute):
         print(f"🕒 Waiting until {hour}:{minute:02d}...")
         time.sleep(delay)
 
+# البرنامج الرئيسي
 def main():
-    # إعداد الخدمات
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
 
-    # جلب الفيديوهات من Google Drive
     folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
     results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
     files = results.get('files', [])
 
-    if len(files) < 2:
-        print("❗ يلزم وجود على الأقل فديوهين في المجلد.")
+    if len(files) < 3:
+        print("❗ يلزم وجود على الأقل 3 فديوهات في المجلد.")
         return
 
-    # رفع الفيديو الأول عند 15:45
-    wait_until(15, 45)
+    # الفيديو الأول - 12:00
+    wait_until(12, 0)
     video1 = files[0]
     path1 = download_video_from_drive(video1['id'], video1['name'], drive_service)
     upload_video_to_youtube(path1, video1['name'], youtube_service)
 
-    # رفع الفيديو الثاني عند 15:50
-    wait_until(15, 50)
+    # الفيديو الثاني - 16:00
+    wait_until(16, 0)
     video2 = files[1]
     path2 = download_video_from_drive(video2['id'], video2['name'], drive_service)
     upload_video_to_youtube(path2, video2['name'], youtube_service)
+
+    # الفيديو الثالث - 21:00
+    wait_until(21, 0)
+    video3 = files[2]
+    path3 = download_video_from_drive(video3['id'], video3['name'], drive_service)
+    upload_video_to_youtube(path3, video3['name'], youtube_service)
 
 if __name__ == "__main__":
     main()
