@@ -1,7 +1,7 @@
 name: Delete Videos from Google Drive
 
 on:
-  workflow_dispatch:  # يشغله المستخدم يدويًا من واجهة GitHub
+  workflow_dispatch:  # يشغله المستخدم يدويًا من الواجهة
 
 jobs:
   delete:
