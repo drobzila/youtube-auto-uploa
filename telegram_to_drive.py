@@ -7,19 +7,19 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
 # ===== إعدادات التلغرام =====
-api_id = 27874350
-api_hash = "a8cca90ec7d1023b8118163822f187c0"
-channel = "quranbng"
+api_id = int(os.environ["TELEGRAM_API_ID"])
+api_hash = os.environ["TELEGRAM_API_HASH"]
+channel = os.environ["TELEGRAM_CHANNEL"]
 download_dir = "downloads"
 os.makedirs(download_dir, exist_ok=True)
 
 # ===== بيانات Google OAuth =====
-CLIENT_ID = "553805965519-1gvas0tmcl86v76k7m9bhkmc7m76657s.apps.googleusercontent.com"
-CLIENT_SECRET = "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"
-REFRESH_TOKEN = "1//09SLS4A1oZYsJCgYIARAAGAkSNwF-L9IrQJneNmOVOAjihJWVMGFL2gYlLAdg0Y_0SZg4bQPjbRR-qkDKYvbSS4weE7zrPh8w4_E"
+CLIENT_ID = os.environ["GOOGLE_CLIENT_ID"]
+CLIENT_SECRET = os.environ["GOOGLE_CLIENT_SECRET"]
+REFRESH_TOKEN = os.environ["GOOGLE_REFRESH_TOKEN"]
+FOLDER_ID = os.environ["GOOGLE_FOLDER_ID"]
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-FOLDER_ID = "1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ"
 
 creds = Credentials(
     None,
@@ -37,7 +37,7 @@ async def download_videos():
     client = TelegramClient("session", api_id, api_hash)
     await client.start()
 
-    async for message in client.iter_messages(channel, limit=20):  # ثابت 20
+    async for message in client.iter_messages(channel, limit=20):
         if message.video and message.file.size <= 7 * 1024 * 1024:  # <= 7MB
             filename = message.file.name or f"{message.id}.mp4"
             filepath = os.path.join(download_dir, filename)
