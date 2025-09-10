@@ -23,12 +23,13 @@ def get_drive_service():
     return build('drive', 'v3', credentials=creds)
 
 def clean_title(title):
-    # إزالة الأحرف غير مطبوعة والمسافات الزائدة
+    # إزالة الأحرف غير المطبوعة والمسافات الزائدة
     return ''.join(c for c in title if c.isprintable()).strip()
 
 def delete_file_by_title(service, title, folder_id):
     title_clean = clean_title(title)
     title_safe = title_clean.replace("'", "\\'")
+    # استخدام contains بدل = للتغلب على فروق بسيطة في الاسم
     query = f"name contains '{title_safe}' and '{folder_id}' in parents"
 
     page_token = None
@@ -53,15 +54,25 @@ def delete_file_by_title(service, title, folder_id):
     if not deleted:
         print(f"⚠️ لم يتم العثور على: {title_clean}")
 
+def extract_title_from_line(line):
+    # تجزئة السطر من اليمين على أساس " - " للحصول على Video ID و Timestamp
+    parts = line.rsplit(" - ", 2)  # آخر جزأين هما Video ID و Timestamp
+    if len(parts) == 3:
+        title = parts[0].strip()
+        return title
+    else:
+        return line.strip()  # إذا لم يحتوي على Video ID، نأخذ السطر كله كعنوان
+
 def main():
     service = get_drive_service()
     with open("log.txt", "r", encoding="utf-8") as f:
         lines = f.readlines()
 
     for line in lines:
-        if " - Video ID:" in line:
-            title = line.split(" - Video ID:")[0].strip()
-            delete_file_by_title(service, title, FOLDER_ID)
+        if line.strip() == "":
+            continue
+        title = extract_title_from_line(line)
+        delete_file_by_title(service, title, FOLDER_ID)
 
 if __name__ == "__main__":
     main()
