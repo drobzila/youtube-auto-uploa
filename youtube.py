@@ -22,10 +22,14 @@ def get_drive_service():
     creds.refresh(Request())
     return build('drive', 'v3', credentials=creds)
 
+def clean_title(title):
+    # إزالة الأحرف غير مطبوعة والمسافات الزائدة
+    return ''.join(c for c in title if c.isprintable()).strip()
+
 def delete_file_by_title(service, title, folder_id):
-    # التأكد من أن علامات الاقتباس لا تسبب مشاكل
-    title_safe = title.replace("'", "\\'")
-    query = f"name = '{title_safe}' and '{folder_id}' in parents"
+    title_clean = clean_title(title)
+    title_safe = title_clean.replace("'", "\\'")
+    query = f"name contains '{title_safe}' and '{folder_id}' in parents"
 
     page_token = None
     deleted = False
@@ -47,7 +51,7 @@ def delete_file_by_title(service, title, folder_id):
         if page_token is None:
             break
     if not deleted:
-        print(f"⚠️ لم يتم العثور على: {title}")
+        print(f"⚠️ لم يتم العثور على: {title_clean}")
 
 def main():
     service = get_drive_service()
