@@ -1,13 +1,56 @@
 import os
 import io
+import random
 import datetime
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.auth.transport.requests import Request
+import random
 
-# إعداد Google Drive API
+# القائمة التي أرسلتها
+video_titles = [
+    "استمتع بسكينة القرآن", "عِش راحة القرآن", "لحظة مع كلام الله", "جمال التلاوة", "نور قلبك بالقرآن",
+    "همسات قرآنية", "ترتيل يشرح الصدر", "أنفاس قرآنية", "رحلة مع القرآن", "معاني تطمئن القلب",
+    "روعة الصوت القرآني", "طمأنينة من السماء", "قرآن يهز المشاعر", "موسيقى السماء", "صوت الملائكة",
+    "صفاء النفس بالقرآن", "ترانيم الرحمة", "آيات تلين القلوب", "نور بين السطور", "سكون القلب",
+    "قرآن الشفاء", "خُشوع لا يُوصف", "صوت يحيي الأرواح", "صدى الجنة", "بصوت من الجنة",
+    "عيش القرآن بجوارحك", "هدوء القرآن", "نفحات قرآنية", "إيمان متجدد", "تلاوة تذيب القلوب",
+    "صوت يهز الوجدان", "لحظة روحانية", "القرآن كما لم تسمعه من قبل", "سافر مع القرآن", "تأمل آية",
+    "حديث الله إليك", "بوح السماء", "قرآن ينير الدرب", "صوت يرقى بالروح", "لحن الرحمة",
+    "ركن الهدوء", "أنفاس السكينة", "نبض التلاوة", "فيض القرآن", "القرآن حياة", "ذِكر طيب",
+    "أصوات من الجنة", "نور التلاوة", "رحمة القرآن", "مرفأ الطمأنينة", "سُطور نورانية",
+    "طيف من الجنة", "السكينة في التلاوة", "بوح من السماء", "صفحة من نور", "عبق القرآن",
+    "صوت الإيمان", "تلاوة تهدئ القلب", "آية تغير الحياة", "أمان الروح", "صوت يلامس القلب",
+    "من أعماق الإيمان", "كلام الله يصل الأعماق", "هُدى ونور", "ارتقاء بالقرآن", "صوت يطهر القلب",
+    "لحظة مع الإيمان", "في حضرة القرآن", "أنغام السماء", "آيات تلامس الأرواح", "خشوع لا يُضاهى",
+    "جمال من الجنة", "صوت ينقلك لعالم آخر", "نورك في القرآن", "شوق للآيات", "بوح الإيمان",
+    "نقاء التلاوة", "عذوبة القرآن", "صوت يحملك للسكينة", "مرفأ الإيمان", "القرآن طمأنينة",
+    "هُدى الرحمن", "بوح الروح", "دقائق مع الله", "لحظات إيمانية", "ترتيل من القلب", "نور الروح",
+    "ترانيم إيمانية", "صوت هادئ ونقي", "عبادة بالصوت", "أنفاس الإيمان", "همس التلاوة",
+    "لحظة نقاء", "فيض نوراني", "آيات تتغلغل في القلب", "ترتيل مطمئن", "صوت مريح للنفس",
+    "رحلة سماوية", "بوح الآيات", "دعاء يتلى", "القرآن رفيقك", "صوت يتسلل إلى روحك"
+]
+
+# دالة لاختيار عنوان عشوائي جديد غير مستخدم بعد
+def get_new_title(used_titles):
+    available = list(set(video_titles) - set(used_titles))
+    if not available:  # إذا استُخدمت كل العناوين
+        return random.choice(video_titles)
+    return random.choice(available)
+
+# مثال على طريقة استخدامه
+used_titles = []  # السجل القديم للعناوين
+new_title = "جمال التلاوة"
+
+if new_title in used_titles:
+    new_title = get_new_title(used_titles)
+
+used_titles.append(new_title)
+print("العنوان النهائي:", new_title)
+
+# ⚙️ إعداد Google Drive API
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
         {
@@ -27,7 +70,7 @@ def get_drive_service():
     )
     return build('drive', 'v3', credentials=credentials)
 
-# إعداد YouTube API
+# ⚙️ إعداد YouTube API
 def get_youtube_service():
     creds = Credentials(
         None,
@@ -40,7 +83,7 @@ def get_youtube_service():
     creds.refresh(Request())
     return build('youtube', 'v3', credentials=creds)
 
-# تحميل فيديو من Google Drive
+# ⬇️ تحميل فيديو من Google Drive
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.FileIO(file_name, 'wb')
@@ -50,12 +93,10 @@ def download_video_from_drive(file_id, file_name, drive_service):
         status, done = downloader.next_chunk()
     return file_name
 
-# رفع فيديو إلى YouTube مع جدولة
+# 🎥 رفع فيديو إلى YouTube مع جدولة
 def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service):
     body = {
-        "snippet": {
-            "title": title
-        },
+        "snippet": {"title": title},
         "status": {
             "privacyStatus": "private",
             "publishAt": scheduled_datetime.isoformat(),
@@ -64,28 +105,33 @@ def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_servic
     }
 
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
-    request = youtube_service.videos().insert(
-        part="snippet,status",
-        body=body,
-        media_body=media
-    )
+    request = youtube_service.videos().insert(part="snippet,status", body=body, media_body=media)
     response = request.execute()
     print(f"✅ Uploaded and scheduled: {title} at {scheduled_datetime.time()} - Video ID: {response['id']}")
     with open("log.txt", "a", encoding="utf-8") as log_file:
         log_file.write(f"{title} - {response['id']} - {scheduled_datetime}\n")
 
-# التحقق من وجود فيديو في السجل
-def is_already_uploaded(title):
-    if os.path.exists("log.txt"):
-        with open("log.txt", "r", encoding="utf-8") as f:
-            return title in f.read()
-    return False
+# 🔁 في حال تكرار العنوان يتم اختيار واحد جديد من القائمة
+def make_unique_title(title):
+    if not os.path.exists("log.txt"):
+        return title
+    with open("log.txt", "r", encoding="utf-8") as f:
+        log_content = f.read()
+    if title not in log_content:
+        return title
+    for new_title in video_titles:
+        if new_title not in log_content:
+            print(f"🔁 تم استبدال العنوان '{title}' بـ '{new_title}' لتجنب التكرار.")
+            return new_title
+    new_title = f"{title} ({random.randint(1000,9999)})"
+    print(f"⚠️ جميع العناوين مستعملة. تم إنشاء عنوان عشوائي: {new_title}")
+    return new_title
 
+# 🧠 الكود الرئيسي
 def main():
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
 
-    # مجلد Google Drive
     folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
     results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
     files = results.get('files', [])
@@ -94,7 +140,6 @@ def main():
         print("❗ لا توجد فيديوهات في المجلد.")
         return
 
-    # توقيتات النشر (بتوقيت الجزائر UTC+1)
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))).date()
     times = [datetime.time(12, 0), datetime.time(16, 0), datetime.time(21, 0)]
     schedule = [
@@ -104,18 +149,17 @@ def main():
 
     uploaded_count = 0
     for file, sched_time in zip(files, schedule):
-        # تجاوز الفيديوهات التي مضى وقت نشرها
         if sched_time <= datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))):
             print(f"⏩ تجاوز {file['name']} لأن وقته {sched_time.time()} قد مر.")
             continue
 
-        if is_already_uploaded(file['name']):
-            print(f"⚠️ {file['name']} موجود في السجل. سيتم تخطيه.")
-            continue
+        # ✅ استخدم عنوان فريد
+        title = make_unique_title(file['name'])
 
         path = download_video_from_drive(file['id'], file['name'], drive_service)
-        upload_video_to_youtube(path, file['name'], sched_time, youtube_service)
+        upload_video_to_youtube(path, title, sched_time, youtube_service)
         uploaded_count += 1
+        os.remove(path)  # تنظيف بعد الرفع
 
         if uploaded_count >= 3:
             break
@@ -125,4 +169,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
