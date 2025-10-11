@@ -7,9 +7,8 @@ from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.auth.transport.requests import Request
-import random
 
-# القائمة التي أرسلتها
+# 📋 قائمة العناوين الجاهزة
 video_titles = [
     "استمتع بسكينة القرآن", "عِش راحة القرآن", "لحظة مع كلام الله", "جمال التلاوة", "نور قلبك بالقرآن",
     "همسات قرآنية", "ترتيل يشرح الصدر", "أنفاس قرآنية", "رحلة مع القرآن", "معاني تطمئن القلب",
@@ -33,24 +32,7 @@ video_titles = [
     "رحلة سماوية", "بوح الآيات", "دعاء يتلى", "القرآن رفيقك", "صوت يتسلل إلى روحك"
 ]
 
-# دالة لاختيار عنوان عشوائي جديد غير مستخدم بعد
-def get_new_title(used_titles):
-    available = list(set(video_titles) - set(used_titles))
-    if not available:  # إذا استُخدمت كل العناوين
-        return random.choice(video_titles)
-    return random.choice(available)
-
-# مثال على طريقة استخدامه
-used_titles = []  # السجل القديم للعناوين
-new_title = "جمال التلاوة"
-
-if new_title in used_titles:
-    new_title = get_new_title(used_titles)
-
-used_titles.append(new_title)
-print("العنوان النهائي:", new_title)
-
-# ⚙️ إعداد Google Drive API
+# 🧩 إنشاء خدمة Google Drive
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
         {
@@ -70,7 +52,7 @@ def get_drive_service():
     )
     return build('drive', 'v3', credentials=credentials)
 
-# ⚙️ إعداد YouTube API
+# 🧩 إنشاء خدمة YouTube
 def get_youtube_service():
     creds = Credentials(
         None,
@@ -83,18 +65,18 @@ def get_youtube_service():
     creds.refresh(Request())
     return build('youtube', 'v3', credentials=creds)
 
-# ⬇️ تحميل فيديو من Google Drive
+# ⬇️ تحميل الفيديو من Google Drive
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.FileIO(file_name, 'wb')
     downloader = MediaIoBaseDownload(fh, request)
     done = False
     while not done:
-        status, done = downloader.next_chunk()
+        _, done = downloader.next_chunk()
     return file_name
 
-# 🎥 رفع فيديو إلى YouTube مع جدولة
-def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service):
+# 🎥 رفع الفيديو مع الاحتفاظ بالاسم الأصلي في السجل
+def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service, original_title):
     body = {
         "snippet": {"title": title},
         "status": {
@@ -103,40 +85,38 @@ def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_servic
             "selfDeclaredMadeForKids": False
         }
     }
-
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
     request = youtube_service.videos().insert(part="snippet,status", body=body, media_body=media)
     response = request.execute()
-    print(f"✅ Uploaded and scheduled: {title} at {scheduled_datetime.time()} - Video ID: {response['id']}")
-    with open("log.txt", "a", encoding="utf-8") as log_file:
-        log_file.write(f"{title} - {response['id']} - {scheduled_datetime}\n")
 
-# 🔁 في حال تكرار العنوان يتم اختيار واحد جديد من القائمة
-def make_unique_title(title):
+    print(f"✅ Uploaded: {title} at {scheduled_datetime.time()} | ID: {response['id']}")
+    with open("log.txt", "a", encoding="utf-8") as log:
+        log.write(f"{original_title} - {response['id']} - {scheduled_datetime}\n")
+
+# 🧠 التحقق من وجود العنوان مسبقاً
+def is_already_uploaded(title):
     if not os.path.exists("log.txt"):
-        return title
+        return False
     with open("log.txt", "r", encoding="utf-8") as f:
-        log_content = f.read()
-    if title not in log_content:
-        return title
-    for new_title in video_titles:
-        if new_title not in log_content:
-            print(f"🔁 تم استبدال العنوان '{title}' بـ '{new_title}' لتجنب التكرار.")
-            return new_title
-    new_title = f"{title} ({random.randint(1000,9999)})"
-    print(f"⚠️ جميع العناوين مستعملة. تم إنشاء عنوان عشوائي: {new_title}")
-    return new_title
+        return title in f.read()
 
-# 🧠 الكود الرئيسي
+# 🧩 العنوان الفريد
+def make_unique_title(title):
+    if is_already_uploaded(title):
+        new_title = random.choice(video_titles)
+        print(f"⚠️ '{title}' مكرر — تم استبداله بـ '{new_title}'")
+        return new_title
+    return title
+
+# 🚀 الكود الرئيسي
 def main():
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
 
     folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
-    results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute()
-    files = results.get('files', [])
+    files = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute().get('files', [])
 
-    if len(files) < 1:
+    if not files:
         print("❗ لا توجد فيديوهات في المجلد.")
         return
 
@@ -147,24 +127,24 @@ def main():
         for t in times
     ]
 
-    uploaded_count = 0
+    uploaded = 0
     for file, sched_time in zip(files, schedule):
         if sched_time <= datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))):
             print(f"⏩ تجاوز {file['name']} لأن وقته {sched_time.time()} قد مر.")
             continue
 
-        # ✅ استخدم عنوان فريد
-        title = make_unique_title(file['name'])
+        original_title = file['name']
+        new_title = make_unique_title(original_title)
 
-        path = download_video_from_drive(file['id'], file['name'], drive_service)
-        upload_video_to_youtube(path, title, sched_time, youtube_service)
-        uploaded_count += 1
-        os.remove(path)  # تنظيف بعد الرفع
+        path = download_video_from_drive(file['id'], original_title, drive_service)
+        upload_video_to_youtube(path, new_title, sched_time, youtube_service, original_title)
+        os.remove(path)  # 🧹 حذف الفيديو بعد الرفع
+        uploaded += 1
 
-        if uploaded_count >= 3:
+        if uploaded >= 3:
             break
 
-    if uploaded_count == 0:
+    if uploaded == 0:
         print("✅ لا توجد فيديوهات مناسبة للرفع اليوم.")
 
 if __name__ == "__main__":
