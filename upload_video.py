@@ -1,22 +1,12 @@
 import os
 import io
-import json
 import random
 import datetime
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials
-from google.oauth2 import service_account
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.auth.transport.requests import Request
-
-# -------------------------
-# ⚠️ تذكير أمني:
-# لا تضع مفاتيح أو ملفات JSON داخل الكود. استخدم متغيرات بيئية أو GitHub Secrets.
-# يجب تعيين:
-# - SERVICE_ACCOUNT_JSON (محتوى JSON كـ string) أو GOOGLE_APPLICATION_CREDENTIALS (مسار ملف JSON)
-# - YOUTUBE_REFRESH_TOKEN, YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET
-# - DRIVE_FOLDER_ID (اختياري إذا تريد تغيير المجلد)
-# -------------------------
 
 # 📋 قائمة العناوين الجاهزة
 video_titles = [
@@ -42,9 +32,12 @@ video_titles = [
     "رحلة سماوية", "بوح الآيات", "دعاء يتلى", "القرآن رفيقك", "صوت يتسلل إلى روحك"
 ]
 
-# -------------------------
-# 🎯 إعداد خدمات Google Drive و YouTube
+# 🧭 مجلد الفيديوهات في Google Drive
+
+FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
+
 # 🧩 إنشاء خدمة Google Drive
+
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
         {
@@ -77,39 +70,7 @@ def get_youtube_service():
     creds.refresh(Request())
     return build('youtube', 'v3', credentials=creds)
 
-# -------------------------
-def get_drive_service():
-    sa_json = os.getenv("SERVICE_ACCOUNT_JSON")
-    if sa_json:
-        info = json.loads(sa_json)
-        creds = service_account.Credentials.from_service_account_info(info, scopes=["https://www.googleapis.com/auth/drive"])
-    else:
-        creds = service_account.Credentials.from_service_account_file(
-            os.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
-            scopes=["https://www.googleapis.com/auth/drive"]
-        )
-    return build('drive', 'v3', credentials=creds)
-
-def get_youtube_service():
-    refresh_token = os.getenv('YOUTUBE_REFRESH_TOKEN')
-    client_id = os.getenv('YOUTUBE_CLIENT_ID')
-    client_secret = os.getenv('YOUTUBE_CLIENT_SECRET')
-    if not (refresh_token and client_id and client_secret):
-        raise RuntimeError("يجب تعيين YOUTUBE_REFRESH_TOKEN و YOUTUBE_CLIENT_ID و YOUTUBE_CLIENT_SECRET في المتغيرات البيئية.")
-    creds = Credentials(
-        None,
-        refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=client_id,
-        client_secret=client_secret,
-        scopes=["https://www.googleapis.com/auth/youtube.upload"]
-    )
-    creds.refresh(Request())
-    return build('youtube', 'v3', credentials=creds)
-
-# -------------------------
-# ⬇️ تنزيل ورفع الفيديو
-# -------------------------
+# ⬇️ تحميل الفيديو من Google Drive
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.FileIO(file_name, 'wb')
@@ -117,166 +78,89 @@ def download_video_from_drive(file_id, file_name, drive_service):
     done = False
     while not done:
         _, done = downloader.next_chunk()
+    print(f"⬇️ تم تحميل {file_name}")
     return file_name
 
+# 🎥 رفع الفيديو إلى YouTube مع الجدولة
 def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service, original_title):
     body = {
-        "snippet": {"title": title},
+        "snippet": {
+            "title": title,
+            "description": "تلاوة قصيرة من القرآن الكريم 🌿 #قرآن #Quran #تلاوة",
+            "tags": ["قرآن", "Quran", "تلاوة", "راحة", "إيمان"]
+        },
         "status": {
             "privacyStatus": "private",
             "publishAt": scheduled_datetime.isoformat(),
             "selfDeclaredMadeForKids": False
         }
     }
+
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
     request = youtube_service.videos().insert(part="snippet,status", body=body, media_body=media)
     response = request.execute()
 
-    print(f"✅ Uploaded: '{title}' scheduled at {scheduled_datetime.isoformat()} | ID: {response.get('id')}")
-    with open("log.txt", "a", encoding="utf-8") as log:
-        log.write(f"{original_title} - {response.get('id')} - {scheduled_datetime.isoformat()} - title:{title}\n")
-
-# -------------------------
-# 🧠 تجنّب التكرار في العناوين
-# -------------------------
-def is_already_uploaded(title):
-    if not os.path.exists("log.txt"):
-        return False
-    with open("log.txt", "r", encoding="utf-8") as f:
-        return title in f.read()
-
-def pick_random_title(used_titles=set()):
-    """
-    يختار عنوانًا عشوائيًا من video_titles:
-    - ليس مستخدماً مسبقًا في هذا التشغيل (used_titles)
-    - ولم يُستخدَم سابقًا حسب log.txt
-    """
-    available = [t for t in video_titles if t not in used_titles and not is_already_uploaded(t)]
-    if not available:
-        # إن نفدت الخيارات، نسمح بالاختيار من كل العناوين مع محاولة الانتباه للتكرار
-        available = [t for t in video_titles if t not in used_titles]
-    if not available:
-        # كملاذ أخير، ارجع أي عنوان عشوائي
-        return random.choice(video_titles)
-    return random.choice(available)
-
-# -------------------------
-# 🚀 الكود الرئيسي: جدولة 5 فيديوهات بالأوقات المطلوبة (UTC+1)
-# -------------------------
-def main():
-    drive_service = get_drive_service()
-    youtube_service = get_youtube_service()
-
-    folder_id = os.getenv('DRIVE_FOLDER_ID', '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ')  # اضبط معرف المجلد إن لزم
-    files_resp = drive_service.files().list(q=f"'{folder_id}' in parents and mimeType contains 'video/'",
-                                            fields="files(id, name)", pageSize=50).execute()
-    files = files_resp.get('files', [])
-
-    if not files:
-        print("❗ لا توجد فيديوهات في المجلد.")
-        return
-
-    # نأخذ أول 5 ملفات (أو أقل إذا لم تتوفر)
-    target_files = files[:5]
-
-    # أوقات الرفع المطلوبة بتوقيت الجزائر UTC+1
-    target_hours = [7, 10, 12, 16, 21]  # بالترتيب
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))
-
-    scheduled_datetimes = []
-    today = now.date()
-    for hour in target_hours:
-        sched = datetime.datetime.combine(today, datetime.time(hour, 0), tzinfo=datetime.timezone(datetime.timedelta(hours=1)))
-        # إن تجاوز الوقت الآن نضعه لليوم التالي
-        if sched <= now:
-            sched = sched + datetime.timedelta(days=1)
-        scheduled_datetimes.append(sched)
-
-    used_titles = set()  # عناوين مستعملة في هذا التشغيل لتجنّب التكرار داخل التشغيل
-    uploaded = 0
-
-    for (file, sched_time) in zip(target_files, scheduled_datetimes):
-        original_title = file['name']
-        # اختيار عنوان عشوائي وغير مكرر
-        new_title = pick_random_title(used_titles)
-        used_titles.add(new_title)
-
-        print(f"⬇️ Preparing to download '{original_title}' (ID: {file['id']}) for schedule {sched_time.isoformat()}")
-        path = download_video_from_drive(file['id'], original_title, drive_service)
-        upload_video_to_youtube(path, new_title, sched_time, youtube_service, original_title)
-
-        try:
-            os.remove(path)
-        except Exception as e:
-            print(f"⚠️ لم أستطع حذف الملف المحلي {path}: {e}")
-
-        uploaded += 1
-
-    print(f"✅ انتهى: عدد الفيديوهات المجدولة/المحمّلة = {uploaded}")
-
-if __name__ == "__main__":
-    main()
-    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
-    request = youtube_service.videos().insert(part="snippet,status", body=body, media_body=media)
-    response = request.execute()
-
-    print(f"✅ Uploaded: {title} at {scheduled_datetime.time()} | ID: {response['id']}")
+    print(f"✅ Uploaded: {title} | Publish at {scheduled_datetime.time()} | ID: {response['id']}")
     with open("log.txt", "a", encoding="utf-8") as log:
         log.write(f"{original_title} - {response['id']} - {scheduled_datetime}\n")
 
-# 🧠 التحقق من وجود العنوان مسبقاً
+# 🧠 التحقق من رفع العنوان مسبقًا
 def is_already_uploaded(title):
     if not os.path.exists("log.txt"):
         return False
     with open("log.txt", "r", encoding="utf-8") as f:
         return title in f.read()
 
-# 🧩 العنوان الفريد
-def make_unique_title(title):
-    if is_already_uploaded(title):
+# 🧩 إنشاء عنوان فريد (يتجنب التكرار)
+def make_unique_title():
+    while True:
         new_title = random.choice(video_titles)
-        print(f"⚠️ '{title}' مكرر — تم استبداله بـ '{new_title}'")
-        return new_title
-    return title
+        if not is_already_uploaded(new_title):
+            return new_title
 
 # 🚀 الكود الرئيسي
 def main():
+    tz = datetime.timezone(datetime.timedelta(hours=1))  # الجزائر +1
+    now = datetime.datetime.now(tz)
+
+    # أوقات النشر اليوم (7، 10، 12، 16، 21)
+    today = now.date()
+    schedule_times = [7, 10, 12, 16, 21]
+    schedule = [
+        datetime.datetime.combine(today, datetime.time(h, 0), tzinfo=tz)
+        for h in schedule_times
+    ]
+
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
 
-    folder_id = '1_iPtcfFs3TpusMr9THwTc31SWtLtwccZ'
-    files = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name)").execute().get('files', [])
+    files = drive_service.files().list(
+        q=f"'{FOLDER_ID}' in parents and mimeType contains 'video/'",
+        fields="files(id, name)"
+    ).execute().get("files", [])
 
     if not files:
-        print("❗ لا توجد فيديوهات في المجلد.")
+        print("⚠️ لا توجد فيديوهات في المجلد.")
         return
 
-    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))).date()
-    times = [datetime.time(12, 0), datetime.time(16, 0), datetime.time(21, 0)]
-    schedule = [
-        datetime.datetime.combine(today, t, tzinfo=datetime.timezone(datetime.timedelta(hours=1)))
-        for t in times
-    ]
+    random.shuffle(files)  # عشوائية في الاختيار
+    selected_files = files[:5]
 
-    uploaded = 0
-    for file, sched_time in zip(files, schedule):
-        if sched_time <= datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1))):
-            print(f"⏩ تجاوز {file['name']} لأن وقته {sched_time.time()} قد مر.")
-            continue
+    for file, sched_time in zip(selected_files, schedule):
+        original_title = file["name"]
+        new_title = make_unique_title()
 
-        original_title = file['name']
-        new_title = make_unique_title(original_title)
+        # تحميل الفيديو
+        path = download_video_from_drive(file["id"], original_title, drive_service)
 
-        path = download_video_from_drive(file['id'], original_title, drive_service)
+        # رفع الفيديو المجدول
         upload_video_to_youtube(path, new_title, sched_time, youtube_service, original_title)
-        os.remove(path)  # 🧹 حذف الفيديو بعد الرفع
-        uploaded += 1
 
-        if uploaded >= 3:
-            break
+        # حذف الفيديو المؤقت
+        os.remove(path)
+        print(f"🧹 حذف {original_title} بعد الرفع")
 
-    if uploaded == 0:
-        print("✅ لا توجد فيديوهات مناسبة للرفع اليوم.")
+    print("✅ تم جدولة ورفع 5 فيديوهات اليوم بنجاح.")
 
 if __name__ == "__main__":
     main()
