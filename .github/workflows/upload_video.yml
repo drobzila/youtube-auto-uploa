@@ -2,7 +2,7 @@ name: Upload Video to YouTube
 
 on:
   schedule:
-  - cron: '0 6 * * *'  # كل يوم على الساعة 6:00 UTC = 7:00 صباحًا بتوقيت الجزائر
+  - cron: '0 5 * * *'  # كل يوم على الساعة 6:00 UTC = 7:00 صباحًا بتوقيت الجزائر
   push:
     branches:
       - main
