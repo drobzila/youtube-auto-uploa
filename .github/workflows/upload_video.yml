@@ -2,45 +2,51 @@ name: Upload Video to YouTube
 
 on:
   schedule:
-  - cron: '0 4 * * *'  # كل يوم على الساعة 6:00 UTC = 7:00 صباحًا بتوقيت الجزائر
+    - cron: '0 6 * * *'  # 06:00 UTC = 07:00 صباحًا بتوقيت الجزائر
   push:
     branches:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   upload:
     runs-on: ubuntu-latest
+    name: Upload YouTube Video
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install packaging
 
-    - name: Upload video to YouTube
-      run: |
-        python upload_video.py
-      env:
-        YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-        YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-        YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      - name: 🚀 Upload video to YouTube
+        run: |
+          echo "🚀 Starting upload..."
+          python upload_video.py
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
 
-    - name: Commit and push log changes
-      run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        git add log.txt
-        git diff --cached --quiet || (
-          git commit -m "Update log with video upload status" || true
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git || true
-        )
-      continue-on-error: true
+      - name: 🪶 Commit and push log changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add log.txt
+          git diff --cached --quiet || (
+            git commit -m "🪶 Update log with video upload status" || true
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git || true
+          )
+        continue-on-error: true
