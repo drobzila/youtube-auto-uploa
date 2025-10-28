@@ -2,25 +2,32 @@ name: Delete Videos from Google Drive
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # 05:00 UTC == 06:00 بتوقيت الجزائر
+    - cron: '0 5 * * *'  # 05:00 UTC = 06:00 بتوقيت الجزائر
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   delete:
     runs-on: ubuntu-latest
+    name: Delete old videos from Google Drive
 
     steps:
-      - name: Checkout repository
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: |
-          pip install google-api-python-client google-auth google-auth-oauthlib
+          python -m pip install --upgrade pip
+          pip install google-api-python-client google-auth google-auth-oauthlib packaging
 
-      - name: Run deletion script
-        run: python youtube.py
+      - name: 🗑️ Run deletion script
+        run: |
+          echo "🚀 Starting deletion process..."
+          python youtube.py
