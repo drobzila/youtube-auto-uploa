@@ -41,18 +41,18 @@ FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
         {
-            "type": "service_account",
-            "project_id": "able-rarity-466017-d7",
-            "private_key_id": "079b667528615f3d89d4e5ee88763e8bf4d0075b",
-            "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCufxjiyqBw8YSB\nfCVVulCVMYEuJ3f3Wqv+lwJszEi/qp4KbYS7iLNtiInoZbrGPMrGb5eN5DXjvjkB\ndu1Rw2iWlcuXyCRUWy3TiRG1Zcjmwx/NY/9fXmzWSi7bmN0w7vTKigmhDxsYJGSj\n3PBnrTE932DQWltAQ20XVnJPl/3ZZc6HJOanNAus6AjVVbCOQfQFxb71yFOkygE/\np2drYdR5tZBYHiwP+1Gr2WtczdhDXFgKCrQsiJcrjdzz244F87/OH0hTRNUhLaG6\neX1Eb7Djo+ACGutooSF0Y1PQa2hB7F+r9dPFL6Ge7BGFhhQPbebbO0bTgBUKIwoP\nFSQ6OLpjAgMBAAECggEARZ8/aimnpziuAk3qxZAvm79jR+uGgaJjUpKk7Iz7j8G/\nCfEVjw+la5QZVijUw0i5LUCUCxCdcc9RhmSRnthlMAP3dglseV3h5G9hqetBI9WB\nqFz4JPCTY1K47HRK+L223OMDoYfZ6yGGKB08rFkddw7b3XXXx8W/Tpr2xAwkRCsh\nYdLcRJgQrOD7gOtIkbnvGDUBE0IMNGn23Smwh6bpDkvdEDS7znmuYFaMNnvGtdXJ\nImZPKN+JpsdiOXiypownCkludgXIH0eVgLvGMxYPqKs4xqtV0sp8GPnjqlsv+tI+\n+n0tVei+U4RMSJQEyA4HLOgBKrefzhGzuJWtm60tlQKBgQDs1rtTW9A9xlz6n/sV\ndEk/lflxBqCRf1gtb5aDjGfGDuCQcWuVThA0dsLnKzKCWfuD0gWp/g+PWk2EPdaG\nCLN3T0zuk6r7dZPz3AElL/VpoZn252GKRoW37QOD7ZQvAy8ae8QXuoaQw1rEruQ0\ni86jIpNYejsrXnJKLtDVM5embQKBgQC8nSrVcBIT4bhOn84lPJg6jAC1dB7FdKuk\nEwaZRBxKbe+y7z3YWFr1joXDKMzyGp5HFzuUoh42Dvf6IQNU1xh4Z44yxOFkGUiA\nK4Q8JlohNLmkFZQKHwtrxCl3Do96O4plsweLlEGrOkMuUEwqdSswceo0kSdmXzWD\nFy5msfmiDwKBgFN8hmAmF0wPZqs6RcoUSdXOSjXbfjKLz0uE8GvCzLn2eJayRJhH\nAlNcIexXP+DPU2fuWuzHkDiaPoUFP1/UJV9DZv0atMUbd2IZBZZUR5BK1PlCKxIR\nNgXV2M1irD++QZZ2VnN+3vycwJxggjU7q0W6ZHJl9AGfs24O/rKJE0YpAoGATi7f\n+IVyGOex3HWFoA3UFEDAcnbl4neQRnzUeWewSnHzsDpXanyFh9BCRjl9asX54gIR\nYnUpDMN7qyVQGjTnIdHbMdRGkZWhZe+j6sMDDUyrvwZqzR89Pribb4yLkOFpZuql\nMAiOiAmom2QRjm/vLS+rI4sfx+GjbumHBG61yaUCgYEAyqp6KaH9EMU7wWVI08Xn\nIATOb2GkD/QHO3CCQdfMEulE8vorc8scuUkpPIJ/FHnTEn2aqcZIAQ7TwxUn9SPi\nf6lFEwYlddeLRg4KgtEDdXVywmTdt+/J/aEdWfEpxujmg7Ad9rYOD1YyvCY7SYgL\n+x05lczFEa5jD10b1h0K5LM=\n-----END PRIVATE KEY-----\n",
-            "client_email": "googeldrive-uploader-service-a@able-rarity-466017-d7.iam.gserviceaccount.com",
-            "client_id": "109947952583981958040",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/googeldrive-uploader-service-a%40able-rarity-466017-d7.iam.gserviceaccount.com",
-            "universe_domain": "googleapis.com"
-        },
+  "type": "service_account",
+  "project_id": "youtubeuploader-465800",
+  "private_key_id": "4c7271f51c474e7c3ec760ee19975fd8854d0d83",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDRKvmezTjo8x0G\n+GUopfvN9a1IYa9Eu0mw67JbucUd5lNZ0IasIlm6B2DlYPys+I4GjysdwgcMhwtu\niPuZaRQkoKcKHxavo7t3TZnrQA3wlth+AJ6jnjp6gqZa4w9LdrqvOVHOyV8nekyc\nAjPLEgH2VM6mqg/sWuuGaiuXZoHAx2i9yVD/9NkYHcY46iNS7iuyFyN4w35fmZdh\nUXkAM0a1S/MwHKa6pM2WG31Jtt/+qjN+/Llmp/rgRcu8EsJVK3AzebiltvGGn17b\ngqvp0w75wU2bJzyIxV3WIFvNXmubs6/dBPeXC1nnGzShzq4Oj/Rk83lffCu9kT84\nj9yL+onzAgMBAAECggEAOoiwOkRr/KSsJts0U9+/S6/Iwkyz46QVxzDuRMUD6I4g\nHS5BwcILIggWkZpGm5EjDarbAgTePB8+j7w9zHyfanCazjZM/vHu8EADJtZSEFXm\nV7yMqHULIGWXcC/Cg/fB3m9H+XpY6o9LCQ2EuPtdGTY6bmGA+z+mUYM8l63T+cJS\nOQBrLFITv0IxcTrSKqkJHQ6YNc7Xy1tZ66alqB7+7d2q+97WBBr+4aFJjia8uZ50\nLh2f03T7JauXtO9bKEwofYESHL1NQSkylHHpt96pkpFlVpQKzUlhSh64KQfrlexr\no6pbfMvEJchzyQw/IWLiAMi6f1mvN7rpj52PU2ugYQKBgQD3swxWb5Pm88yxwAI/\nZ9IupMryyus6vjdlAQl4nqPbs5MXnSjl+v4DDsKX5t3Su6mg7NJylgffuTu+izn8\nqFIthRQKWfkbwhA3p0ZjEWmdtR4MDITmkQJM+fOmy58toSz1Jcdxc1tOATcIsr57\nHE6m0aKNBWFbEQe3A8DrYjmElwKBgQDYLV/YRXzOY6lYGHn2Czmjvmhssf1fIEA7\nUtE5SxsSm+2Nqe4y8cbMXMyYkOgy1UymRcI69oaNr/Zg7095d154UJLpdHPwQTPs\ncYjb40tT4dNUpyBHUhlnzQsebOROtAHvCAEt0kqxtD8MQUA2xq0goi+LXeYgqimX\nPwnOXVwFBQKBgQDRFnHOsMb/iEL8tGDxVtkkCHVMN6AS6ShneVWeXQNiXJZIs6An\nahRrTlVS1k3fKgxJTD9k/GJPJtRYxru/G/KqfBBroIFYPhtkby5KSBOITa+8agDx\ng+yWP9O9s1p9sPT7RtWxXbfwA7SKAiAqWb3GsWTud2Ez9w81HNUHnNWCpwKBgB1g\nfSfcuYsqi/bGzLwc5mZUF8i9n1rv/QqSxI/unu02d1/K+e2+YW+gJMWO258c0V+/\nFxgALGTQxsCBhOFS0Wm0OWK0SpUZpz64ZwrKpo/tnlRgqchHZeBvQtWNorD3UVP0\nWISrkS74+aBmtZ07/obyw1dDGWTS+vfsvx5mHX0pAoGAdQQdV6ivM8cGKcIj5CK9\nLjpGIfnBw+dYMwRLUdbjNruYOC8WyHjOiVvM1l5yz77pKngIk9O86pXe6WqfNmRx\ncxFLr9th/69lJ4dDtlzQCeYvY1fr3zpPYtWiT4VTDpT+4uBQUguy/G07MkHTPLgh\nKG1aY1eBb9bwbGLkc04Db6s=\n-----END PRIVATE KEY-----\n",
+  "client_email": "youtubevideos@youtubeuploader-465800.iam.gserviceaccount.com",
+  "client_id": "111374510118265897026",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/youtubevideos%40youtubeuploader-465800.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+},
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build('drive', 'v3', credentials=credentials)
