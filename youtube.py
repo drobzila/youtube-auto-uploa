@@ -3,9 +3,9 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 # 🔐 بيانات OAuth (كما هي — لم تُمس)
-CLIENT_ID = "601751497344-146gtpknc8jiddmifni0j1k26tuiudoo.apps.googleusercontent.com"
-CLIENT_SECRET = "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"
-REFRESH_TOKEN = "1//03JhDvr_EpSpcCgYIARAAGAMSNwF-L9Ircy_Edw5jzR3JAXIdBvPg2L9Vzjm-Jd610d4Y7b6IBGWP1Us5wDYH6oTKA8qJPGjxaqI"
+CLIENT_ID = "108880269998-29mupf5siumdovf83irg7ocqgkd8q21n.apps.googleusercontent.com"
+CLIENT_SECRET = "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"
+REFRESH_TOKEN = "1//04eSUNf4_LX0MCgYIARAAGAQSNwF-L9IrcxJYhclaMQiu2dI9wFLHErHjiyTBfIYssn8zmhMUn0mGoFEhwWRyE3FWe1iO_P-zRpU"
 
 # 📂 مجلد Drive الهدف
 FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
