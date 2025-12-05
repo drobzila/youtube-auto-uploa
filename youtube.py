@@ -2,7 +2,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-# 🔐 بيانات OAuth (كما هي — لم تُمس)
+# 🔐 بيانات OAuth
 CLIENT_ID = "108880269998-bcjare6v388kucan7amb82q370m61pq5.apps.googleusercontent.com"
 CLIENT_SECRET = "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"
 REFRESH_TOKEN = "1//03JHjFKSZ6V56CgYIARAAGAMSNwF-L9Ir4ZVvnpbx64vKup8pkXuspIxGBlmEAguJjweg6hzYGjU8U4l_oGLZJuArjcqRSW2HTB0"
@@ -10,7 +10,7 @@ REFRESH_TOKEN = "1//03JHjFKSZ6V56CgYIARAAGAMSNwF-L9Ir4ZVvnpbx64vKup8pkXuspIxGBlm
 # 📂 مجلد Drive الهدف
 FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
 
-# 🔧 الصلاحيات المطلوبة
+# 🔧 الصلاحيات
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 def get_drive_service():
@@ -25,43 +25,43 @@ def get_drive_service():
     creds.refresh(Request())
     return build("drive", "v3", credentials=creds)
 
-def delete_all_in_folder(service, folder_id):
-    print(f"🚮 جاري حذف كل الملفات من المجلد: {folder_id}")
+def delete_videos_in_folder(service, folder_id):
+    print(f"🚮 جاري حذف الفيديوهات فقط من المجلد: {folder_id}")
     page_token = None
     total_deleted = 0
 
     while True:
-        # جلب الملفات داخل المجلد
+        # 🟦 جلب الفيديوهات فقط داخل المجلد
         response = service.files().list(
-            q=f"'{folder_id}' in parents",
-            fields="nextPageToken, files(id, name)",
+            q=f"'{folder_id}' in parents and mimeType contains 'video/'",
+            fields="nextPageToken, files(id, name, mimeType)",
             pageToken=page_token
         ).execute()
 
         files = response.get("files", [])
         if not files:
             if total_deleted == 0:
-                print("📭 المجلد فارغ بالفعل.")
+                print("📭 لا توجد فيديوهات في هذا المجلد.")
             else:
-                print(f"✅ تم حذف {total_deleted} ملف بنجاح.")
+                print(f"✅ تم حذف {total_deleted} فيديو بنجاح.")
             break
 
         for file in files:
             try:
                 service.files().delete(fileId=file["id"]).execute()
-                print(f"🗑️ تم حذف: {file['name']}")
+                print(f"🗑️ تم حذف الفيديو: {file['name']}")
                 total_deleted += 1
             except Exception as e:
                 print(f"❌ فشل حذف {file['name']}: {e}")
 
         page_token = response.get("nextPageToken", None)
         if not page_token:
-            print(f"✅ تمت العملية بنجاح. مجموع الملفات المحذوفة: {total_deleted}")
+            print(f"🎉 النهاية — مجموع الفيديوهات المحذوفة: {total_deleted}")
             break
 
 def main():
     service = get_drive_service()
-    delete_all_in_folder(service, FOLDER_ID)
+    delete_videos_in_folder(service, FOLDER_ID)
 
 if __name__ == "__main__":
     main()
