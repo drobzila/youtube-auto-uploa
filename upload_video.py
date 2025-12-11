@@ -48,7 +48,7 @@ def mark_uploaded(file_hash):
 
 # ------------------ خدمات Google ------------------
 def get_drive_service():
-    credentials = ServiceAccountCredentials.from_service_account_info(
+    creds = ServiceAccountCredentials.from_service_account_info(
         {
   "type": "service_account",
   "project_id": "quran-478116",
@@ -64,6 +64,8 @@ def get_drive_service():
 },
         scopes=["https://www.googleapis.com/auth/drive"]
     )
+    return build('drive', 'v3', credentials=creds)
+    
     def get_youtube_service():
          creds = Credentials(
         None,
