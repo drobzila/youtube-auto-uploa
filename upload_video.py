@@ -11,6 +11,8 @@ from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.auth.transport.requests import Request
 
+JSON_FILE = "uploaded.json"
+
 # ------------------ إعدادات ------------------
 FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
 TIMEZONE_OFFSET = 1  # الجزائر +1
