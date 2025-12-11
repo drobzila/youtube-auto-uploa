@@ -1,6 +1,8 @@
 import os
 import io
+import json
 import random
+import hashlib
 import datetime
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
@@ -8,36 +10,18 @@ from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.auth.transport.requests import Request
 
-# 📋 قائمة العناوين الجاهزة
+# ---------- إعدادات ----------
+FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
+TIMEZONE_OFFSET = 1  # الجزائر +1
+WINDOW_MINUTES = 10   # نافذة زمنية للنشر
+
+# قائمة العناوين الجاهزة
 video_titles = [
-    "تلاوة خاشعة تلامس القلوب", "صوت يريح القلب والعقل", "آيات تبعث الطمأنينة في النفس",
-    "تلاوة عذبة تدمع لها العيون", "استمع لتلاوة تهز المشاعر", "أجمل تلاوة قرآنية مؤثرة جدًا",
-    "تلاوة نادرة تبكي القلوب", "صوت ملائكي يشرح الصدر", "خشوع لا يُوصف أثناء التلاوة",
-    "تلاوة تهز الوجدان بخشوعها", "صوت يأخذك إلى عالم من السكينة", "أجمل ما تسمع من القرآن الكريم",
-    "لحظات روحانية لا تُنسى مع القرآن", "تلاوة تملأ القلب بالنور", "صوت يذكرك بالجنة",
-    "راحة نفسية لا توصف مع هذه التلاوة", "آيات تشرح الصدر وتُذهب الهم", "جمال الترتيل وروعة الأداء",
-    "صوت يدخل القلب بدون استئذان", "تلاوة هادئة قبل النوم تبعث السكينة",
-    "ترتيل يبكي الصخر من الخشوع", "تلاوة مؤثرة بصوت نادر الجمال", "قرآن يلامس الإحساس بعمق",
-    "استمع بقلبك لا بأذنك", "تلاوة هادئة تريح أعصابك وتملأك إيمانًا",
-    "خشوع لا مثيل له في هذه التلاوة", "صوت كأنه من السماء", "آيات من نور تملأ المكان طمأنينة",
-    "تلاوة تذكرك بلقاء الله", "صوت يبكي المستمعين بخشوعه", "لحظة صفاء مع كلام الله",
-    "استمع لتلاوة تجعلك تبكي من الخشوع", "تلاوة نادرة من المسجد الحرام", "ترتيل مؤثر من قلب صادق",
-    "صوت يبعث السكينة في كل من يسمع", "القرآن شفاء للقلوب — تلاوة مؤثرة جدًا",
-    "تلاوة تبعث الطمأنينة في ليل هادئ", "ترتيل ملائكي يلامس الأرواح", "تلاوة من أروع ما يكون",
-    "صوت يدخل القلب بلا مقدمات", "قرآن يُتلى بخشوع نادر", "استمع لهذه التلاوة وستشعر بالسكينة",
-    "ترتيل يبعث الدموع من شدة الخشوع", "تلاوة تهدئ القلب المرهق", "جمال الصوت وروعة الأداء القرآني",
-    "آيات تبكيك من جمالها", "تلاوة مؤثرة جدًا بصوت رائع", "لحظة مع كلام الله تبعث الطمأنينة",
-    "صوت مؤثر يذكّرك بالآخرة", "القرآن الكريم بصوت يريح النفس",
-    "استمع إلى أجمل ما قرئ من كتاب الله", "صوت نادر في تلاوة تبكي الحجر",
-    "تلاوة خاشعة تلامس الروح", "صوت يملأ المكان نورًا وطمأنينة", "ترتيل عذب يهز المشاعر"
+    "تلاوة خاشعة تلامس القلوب", "صوت يريح القلب والعقل", 
+    "آيات تبعث الطمأنينة في النفس", "تلاوة عذبة تدمع لها العيون"
 ]
 
-# 🧭 مجلد الفيديوهات في Google Drive
-
-FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
-
-# 🧩 إنشاء خدمة Google Drive
-
+# ---------- خدمات Google ----------
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
         {
@@ -56,8 +40,7 @@ def get_drive_service():
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build('drive', 'v3', credentials=credentials)
-
-# 🧩 إنشاء خدمة YouTube
+# ---------- خدمات Youtube ----------
 def get_youtube_service():
     creds = Credentials(
         None,
@@ -70,7 +53,34 @@ def get_youtube_service():
     creds.refresh(Request())
     return build('youtube', 'v3', credentials=creds)
 
-# ⬇️ تحميل الفيديو من Google Drive
+# ---------- إدارة الملفات المرفوعة ----------
+def load_uploaded():
+    if os.path.exists("uploaded.json"):
+        with open("uploaded.json", "r") as f:
+            return json.load(f)
+    return {"videos": []}
+
+def save_uploaded(data):
+    with open("uploaded.json", "w") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+def is_uploaded(file_hash):
+    data = load_uploaded()
+    return file_hash in data["videos"]
+
+def mark_uploaded(file_hash):
+    data = load_uploaded()
+    data["videos"].append(file_hash)
+    save_uploaded(data)
+
+def file_hash(path):
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+# ---------- تحميل الفيديو من Drive ----------
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.FileIO(file_name, 'wb')
@@ -78,69 +88,55 @@ def download_video_from_drive(file_id, file_name, drive_service):
     done = False
     while not done:
         _, done = downloader.next_chunk()
-    print(f"⬇️ تم تحميل {file_name}")
     return file_name
 
-# 🎥 رفع الفيديو إلى YouTube مع الجدولة
-def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service, original_title):
+# ---------- رفع الفيديو إلى YouTube ----------
+def upload_video_to_youtube(file_path, title, youtube_service):
     body = {
         "snippet": {
             "title": title,
             "description": (
-                "✨ استمع إلى تلاوة خاشعة مؤثرة من القرآن الكريم بصوت يلامس القلب 🌿\n"
-                "آيات تبعث فيك الراحة والسكينة وتذكّرك بعظمة كلام الله جلّ وعلا.\n"
-                "📖 استمع وتأمل لتعيش لحظة روحانية تملأ قلبك نورًا وإيمانًا.\n\n"
-                "🔔 اشترك بالقناة ليصلك كل جديد من أجمل التلاوات والقراءات النادرة.\n\n"
-                "#قرآن #Quran #تلاوة #تلاوة_خاشعة #القرآن_الكريم #آيات #راحة_نفسية #صوت_جميل #ماهر_المعيقلي #مشاري_العفاسي #عبدالرحمن_مسعد #خشوع #تلاوة_مؤثرة"
+                "✨ استمع إلى تلاوة خاشعة مؤثرة من القرآن الكريم بصوت يلامس القلب 🌿"
             ),
-            "tags": [
-                "قرآن", "Quran", "تلاوة", "تلاوة خاشعة", "تلاوة مؤثرة", "القرآن الكريم",
-                "راحة نفسية", "صوت جميل", "آيات", "خشوع", "مشاري العفاسي", "عبد الرحمن مسعد",
-                "ماهر المعيقلي", "إسلام", "تدبر", "روحانية", "راحة القلب", "تلاوة قبل النوم",
-                "قراءة مؤثرة", "صوت يريح القلب", "تلاوة قرآنية", "قرآن بصوت رائع"
-            ]
+            "tags": ["قرآن", "تلاوة", "Quran", "خشوع"]
         },
         "status": {
-            "privacyStatus": "private",
-            "publishAt": scheduled_datetime.isoformat(),
+            "privacyStatus": "public",
             "selfDeclaredMadeForKids": False
         }
     }
-
     media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
     request = youtube_service.videos().insert(part="snippet,status", body=body, media_body=media)
     response = request.execute()
+    print(f"✅ Uploaded: {title} | ID: {response['id']}")
+    mark_uploaded(file_hash(file_path))
 
-    print(f"✅ Uploaded: {title} | Publish at {scheduled_datetime.time()} | ID: {response['id']}")
-    with open("log.txt", "a", encoding="utf-8") as log:
-        log.write(f"{original_title} - {response['id']} - {scheduled_datetime}\n")
-
-# 🧠 التحقق من رفع العنوان مسبقًا
-def is_already_uploaded(title):
-    if not os.path.exists("log.txt"):
-        return False
-    with open("log.txt", "r", encoding="utf-8") as f:
-        return title in f.read()
-
-# 🧩 إنشاء عنوان فريد (يتجنب التكرار)
+# ---------- اختيار عنوان فريد ----------
 def make_unique_title():
     while True:
-        new_title = random.choice(video_titles)
-        if not is_already_uploaded(new_title):
-            return new_title
+        t = random.choice(video_titles)
+        data = load_uploaded()
+        if t not in data["videos"]:
+            return t
 
-# 🚀 الكود الرئيسي
-def main():
-    tz = datetime.timezone(datetime.timedelta(hours=1))  # الجزائر +1
+# ---------- التحقق من وقت النشر ----------
+def is_time_to_upload(schedule_hours, tz, window_minutes):
     now = datetime.datetime.now(tz)
+    for h in schedule_hours:
+        start = datetime.datetime.combine(now.date(), datetime.time(h, 0, tzinfo=tz))
+        end = start + datetime.timedelta(minutes=window_minutes)
+        if start <= now < end:
+            return True
+    return False
 
-    # أوقات النشر اليوم (7، 10، 12، 16، 21)
-    today = now.date()
-    schedule_times = [7, 10, 12, 16, 21]
-    schedule = [
-        datetime.datetime.combine(today, datetime.time(h, 0), tzinfo=tz)
-        for h in schedule_times
-    ]
+# ---------- Main ----------
+def main():
+    tz = datetime.timezone(datetime.timedelta(hours=TIMEZONE_OFFSET))
+    schedule_hours = [7, 10, 12, 16, 21]
+
+    if not is_time_to_upload(schedule_hours, tz, WINDOW_MINUTES):
+        print("⏸ ليس وقت الرفع، الخروج.")
+        return
 
     drive_service = get_drive_service()
     youtube_service = get_youtube_service()
@@ -154,24 +150,19 @@ def main():
         print("⚠️ لا توجد فيديوهات في المجلد.")
         return
 
-    random.shuffle(files)  # عشوائية في الاختيار
-    selected_files = files[:5]
-
-    for file, sched_time in zip(selected_files, schedule):
-        original_title = file["name"]
-        new_title = make_unique_title()
-
-        # تحميل الفيديو
-        path = download_video_from_drive(file["id"], original_title, drive_service)
-
-        # رفع الفيديو المجدول
-        upload_video_to_youtube(path, new_title, sched_time, youtube_service, original_title)
-
-        # حذف الفيديو المؤقت
+    random.shuffle(files)
+    for file in files:
+        path = download_video_from_drive(file["id"], file["name"], drive_service)
+        h = file_hash(path)
+        if is_uploaded(h):
+            print(f"❗ الفيديو {file['name']} تم رفعه مسبقًا، تخطي.")
+            os.remove(path)
+            continue
+        title = make_unique_title()
+        upload_video_to_youtube(path, title, youtube_service)
         os.remove(path)
-        print(f"🧹 حذف {original_title} بعد الرفع")
-
-    print("✅ تم جدولة ورفع 5 فيديوهات اليوم بنجاح.")
+        print(f"🧹 حذف {file['name']} بعد الرفع")
+        break  # رفع فيديو واحد فقط لكل نافذة زمنية
 
 if __name__ == "__main__":
     main()
