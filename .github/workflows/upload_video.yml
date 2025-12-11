@@ -1,9 +1,10 @@
-name: Quran Video Upload 🎥
+name: Upload Quran Videos to YouTube 🎥
 
+# تشغيل كل ساعة + إمكانية التشغيل يدوي
 on:
   schedule:
-    - cron: "0 * * * *"   # كل ساعة عند الدقيقة 0 UTC
-  workflow_dispatch:       # لتشغيل workflow يدويًا عند الحاجة
+    - cron: "0 * * * *"  # كل ساعة
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,21 +12,33 @@ permissions:
 jobs:
   upload:
     runs-on: ubuntu-latest
-    name: Upload Quran Videos to YouTube
+    name: Upload Quran Videos
 
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🐍 Setup Python 3.10
+      - name: 🔑 Configure Git user
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: 🐍 Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.11"  # يفضل 3.11 لتجنب تحذيرات Google
 
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2 tqdm packaging
+
+      - name: 🎞️ Install FFmpeg
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
 
       - name: 🚀 Run Upload Script
         env:
