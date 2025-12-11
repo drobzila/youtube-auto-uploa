@@ -1,52 +1,32 @@
-name: Upload Video to YouTube
+name: Upload Quran Videos to YouTube
 
 on:
   schedule:
-   - cron: '0 5 * * *' # 06:00 UTC = 07:00 صباحًا بتوقيت الجزائر
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-permissions:
-  contents: write
+    - cron: "0 * * * *" # تعمل كل ساعة
+  workflow_dispatch:  # يمكن تشغيلها يدويًا
 
 jobs:
   upload:
     runs-on: ubuntu-latest
-    name: Upload YouTube Video
 
     steps:
-      - name: 🧾 Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout Repo
+        uses: actions/checkout@v3
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
-      - name: 📦 Install dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install packaging
+          pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
 
-      - name: 🚀 Upload video to YouTube
-        run: |
-          echo "🚀 Starting upload..."
-          python upload_video.py
+      - name: Run Upload Script
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-
-      - name: 🪶 Commit and push log changes
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add log.txt
-          git diff --cached --quiet || (
-            git commit -m "🪶 Update log with video upload status" || true
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git || true
-          )
-        continue-on-error: true
+          python upload_script.py
