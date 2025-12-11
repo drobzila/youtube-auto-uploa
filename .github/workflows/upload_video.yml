@@ -1,9 +1,11 @@
-name: Upload Quran Videos to YouTube 🎥
+name: Upload Video to YouTube
 
-# تشغيل كل ساعة + إمكانية التشغيل يدوي
 on:
   schedule:
-    - cron: "0 * * * *"  # كل ساعة
+   - cron: '0 5 * * *' # 06:00 UTC = 07:00 صباحًا بتوقيت الجزائر
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -12,38 +14,40 @@ permissions:
 jobs:
   upload:
     runs-on: ubuntu-latest
-    name: Upload Quran Videos
+    name: Upload YouTube Video
 
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🔑 Configure Git user
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v4
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"  # يفضل 3.11 لتجنب تحذيرات Google
+          python-version: '3.x'
 
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2 tqdm packaging
+          pip install -r requirements.txt
+          pip install packaging
 
-      - name: 🎞️ Install FFmpeg
+      - name: 🚀 Upload video to YouTube
         run: |
-          sudo apt update
-          sudo apt install -y ffmpeg
-
-      - name: 🚀 Run Upload Script
+          echo "🚀 Starting upload..."
+          python upload_video.py
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+
+      - name: 🪶 Commit and push log changes
         run: |
-          python upload_video.py
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add log.txt
+          git diff --cached --quiet || (
+            git commit -m "🪶 Update log with video upload status" || true
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git || true
+          )
+        continue-on-error: true
+
