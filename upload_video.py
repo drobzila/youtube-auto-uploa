@@ -132,6 +132,21 @@ def push_uploaded_json():
     except Exception as e:
         print(f"❌ Push failed: {e}")
 
+# التأكد من وجود الملف وصلاحيته---------------------
+if not os.path.exists(JSON_FILE) or os.stat(JSON_FILE).st_size == 0:
+    with open(JSON_FILE, "w", encoding="utf-8") as f:
+        json.dump({"videos": []}, f, ensure_ascii=False, indent=2)
+
+# الآن قراءة البيانات-------------------------------
+with open(JSON_FILE, "r", encoding="utf-8") as f:
+    try:
+        uploaded_data = json.load(f)
+    except json.JSONDecodeError:
+        # إذا كان الملف غير صالح JSON، إعادة إنشائه
+        uploaded_data = {"videos": []}
+        with open(JSON_FILE, "w", encoding="utf-8") as f2:
+            json.dump(uploaded_data, f2, ensure_ascii=False, indent=2)
+
 # ------------------ Main ------------------
 def main():
     tz = datetime.timezone(datetime.timedelta(hours=TIMEZONE_OFFSET))
