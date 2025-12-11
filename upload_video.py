@@ -19,16 +19,24 @@ JSON_FILE = "uploaded.json"
 
 video_titles = [
     "تلاوة خاشعة تلامس القلوب", "صوت يريح القلب والعقل", 
-    "آيات تبعث الطمأنينة في النفس", "تلاوة عذبة تدمع لها العيون"
+    "آيات تبعث الطمأنينة في النفس", "تلاوة عذبة تدمع لها العيون",
+    "استمع لتلاوة تهز المشاعر", "أجمل تلاوة قرآنية مؤثرة جدًا"
 ]
 
-# ------------------ إنشاء أو تحميل uploaded.json ------------------
-if not os.path.exists(JSON_FILE):
+# ------------------ إعداد uploaded.json ------------------
+if not os.path.exists(JSON_FILE) or os.stat(JSON_FILE).st_size == 0:
     with open(JSON_FILE, "w", encoding="utf-8") as f:
         json.dump({"videos": []}, f, ensure_ascii=False, indent=2)
 
-with open(JSON_FILE, "r", encoding="utf-8") as f:
-    uploaded_data = json.load(f)  # ✅ اسم متغير ثابت
+try:
+    with open(JSON_FILE, "r", encoding="utf-8") as f:
+        uploaded_data = json.load(f)
+        if not isinstance(uploaded_data, dict) or "videos" not in uploaded_data:
+            raise ValueError("Invalid JSON structure")
+except (json.JSONDecodeError, ValueError):
+    uploaded_data = {"videos": []}
+    with open(JSON_FILE, "w", encoding="utf-8") as f:
+        json.dump(uploaded_data, f, ensure_ascii=False, indent=2)
 
 def is_uploaded(file_hash):
     return file_hash in uploaded_data["videos"]
@@ -57,7 +65,7 @@ def get_drive_service():
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     def get_youtube_service():
-        creds = Credentials(
+         creds = Credentials(
         None,
         refresh_token=os.getenv('YOUTUBE_REFRESH_TOKEN'),
         token_uri="https://oauth2.googleapis.com/token",
@@ -68,7 +76,7 @@ def get_drive_service():
     creds.refresh(Request())
     return build('youtube', 'v3', credentials=creds)
 
-# ------------------ تحميل الفيديو من Drive ------------------
+# ------------------ تحميل الفيديو ------------------
 def download_video_from_drive(file_id, file_name, drive_service):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.FileIO(file_name, 'wb')
@@ -85,7 +93,7 @@ def file_hash(path):
             h.update(chunk)
     return h.hexdigest()
 
-# ------------------ رفع الفيديو على YouTube ------------------
+# ------------------ رفع الفيديو ------------------
 def upload_video_to_youtube(file_path, title, youtube_service):
     body = {
         "snippet": {
@@ -94,7 +102,7 @@ def upload_video_to_youtube(file_path, title, youtube_service):
             "tags": ["قرآن", "تلاوة", "Quran", "خشوع"]
         },
         "status": {
-            "privacyStatus": "public",
+            "privacyStatus": "public",  # علني مباشرة
             "selfDeclaredMadeForKids": False
         }
     }
@@ -131,25 +139,6 @@ def push_uploaded_json():
         print(f"✅ {JSON_FILE} pushed to GitHub.")
     except Exception as e:
         print(f"❌ Push failed: {e}")
-
-
-# التأكد من وجود الملف وصلاحيته
-if not os.path.exists(JSON_FILE):
-    with open(JSON_FILE, "w", encoding="utf-8") as f:
-        json.dump({"videos": []}, f, ensure_ascii=False, indent=2)
-
-# محاولة قراءة JSON، وإن فشل إنشاء جديد
-try:
-    with open(JSON_FILE, "r", encoding="utf-8") as f:
-        content = f.read().strip()
-        if content:
-            uploaded_data = json.loads(content)
-        else:
-            raise ValueError("Empty file")
-except (json.JSONDecodeError, ValueError):
-    uploaded_data = {"videos": []}
-    with open(JSON_FILE, "w", encoding="utf-8") as f:
-        json.dump(uploaded_data, f, ensure_ascii=False, indent=2)
 
 # ------------------ Main ------------------
 def main():
