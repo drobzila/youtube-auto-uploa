@@ -4,24 +4,24 @@ import json
 import random
 import hashlib
 import datetime
+import subprocess
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.auth.transport.requests import Request
 
-# ---------- إعدادات ----------
+# ------------------ إعدادات ------------------
 FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
 TIMEZONE_OFFSET = 1  # الجزائر +1
 WINDOW_MINUTES = 10   # نافذة زمنية للنشر
 
-# قائمة العناوين الجاهزة
 video_titles = [
     "تلاوة خاشعة تلامس القلوب", "صوت يريح القلب والعقل", 
     "آيات تبعث الطمأنينة في النفس", "تلاوة عذبة تدمع لها العيون"
 ]
 
-# ---------- خدمات Google ----------
+# ------------------ خدمات Google ------------------
 def get_drive_service():
     credentials = ServiceAccountCredentials.from_service_account_info(
         {
@@ -40,7 +40,7 @@ def get_drive_service():
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build('drive', 'v3', credentials=credentials)
-# ---------- خدمات Youtube ----------
+# ------------------ خدمات Youtube ------------------    
 def get_youtube_service():
     creds = Credentials(
         None,
@@ -53,14 +53,133 @@ def get_youtube_service():
     creds.refresh(Request())
     return build('youtube', 'v3', credentials=creds)
 
-# ---------- إدارة الملفات المرفوعة ----------
+# ------------------ إدارة uploaded.json ------------------
+JSON_FILE = "uploaded.json"
+
 def load_uploaded():
-    if os.path.exists("uploaded.json"):
-        with open("uploaded.json", "r") as f:
-            return json.load(f)
-    return {"videos": []}
+    if not os.path.exists(JSON_FILE):
+        with open(JSON_FILE, "w", encoding="utf-8") as f:
+            json.dump({"videos": []}, f, ensure_ascii=False, indent=2)
+    with open(JSON_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def save_uploaded(data):
+    with open(JSON_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def is_uploaded(file_hash):
+    data = load_uploaded()
+    return file_hash in data["videos"]
+
+def mark_uploaded(file_hash):
+    data = load_uploaded()
+    data["videos"].append(file_hash)
+    save_uploaded(data)
+
+def file_hash(path):
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+# ------------------ تحميل الفيديو من Drive ------------------
+def download_video_from_drive(file_id, file_name, drive_service):
+    request = drive_service.files().get_media(fileId=file_id)
+    fh = io.FileIO(file_name, 'wb')
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    return file_name
+
+# ------------------ رفع الفيديو على YouTube ------------------
+def upload_video_to_youtube(file_path, title, youtube_service):
+    body = {
+        "snippet": {
+            "title": title,
+            "description": "✨ استمع إلى تلاوة خاشعة مؤثرة من القرآن الكريم 🌿",
+            "tags": ["قرآن", "تلاوة", "Quran", "خشوع"]
+        },
+        "status": {
+            "privacyStatus": "public",
+            "selfDeclaredMadeForKids": False
+        }
+    }
+    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
+    request = youtube_service.videos().insert(part="snippet,status", body=body, media_body=media)
+    response = request.execute()
+    print(f"✅ Uploaded: {title} | ID: {response['id']}")
+    mark_uploaded(file_hash(file_path))
+
+# ------------------ اختيار عنوان فريد ------------------
+def make_unique_title():
+    while True:
+        t = random.choice(video_titles)
+        if t not in load_uploaded()["videos"]:
+            return t
+
+# ------------------ التحقق من وقت النشر ------------------
+def is_time_to_upload(schedule_hours, tz, window_minutes):
+    now = datetime.datetime.now(tz)
+    for h in schedule_hours:
+        start = datetime.datetime.combine(now.date(), datetime.time(h, 0, tzinfo=tz))
+        end = start + datetime.timedelta(minutes=window_minutes)
+        if start <= now < end:
+            return True
+    return False
+
+# ------------------ Git Push ------------------
+def push_uploaded_json():
+    try:
+        subprocess.run(["git", "pull", "--rebase"], check=False)
+        subprocess.run(["git", "add", JSON_FILE], check=True)
+        subprocess.run(["git", "commit", "-m", "🪶 تحديث سجل الفيديوهات"], check=False)
+        subprocess.run(["git", "push"], check=True)
+        print(f"✅ {JSON_FILE} pushed to GitHub.")
+    except Exception as e:
+        print(f"❌ Push failed: {e}")
+
+# ------------------ Main ------------------
+def main():
+    tz = datetime.timezone(datetime.timedelta(hours=TIMEZONE_OFFSET))
+    schedule_hours = [7, 10, 12, 16, 21]
+
+    if not is_time_to_upload(schedule_hours, tz, WINDOW_MINUTES):
+        print("⏸ ليس وقت الرفع، الخروج.")
+        return
+
+    drive_service = get_drive_service()
+    youtube_service = get_youtube_service()
+
+    files = drive_service.files().list(
+        q=f"'{FOLDER_ID}' in parents and mimeType contains 'video/'",
+        fields="files(id, name)"
+    ).execute().get("files", [])
+
+    if not files:
+        print("⚠️ لا توجد فيديوهات في المجلد.")
+        return
+
+    random.shuffle(files)
+    for file in files:
+        path = download_video_from_drive(file["id"], file["name"], drive_service)
+        h = file_hash(path)
+        if is_uploaded(h):
+            print(f"❗ الفيديو {file['name']} تم رفعه مسبقًا، تخطي.")
+            os.remove(path)
+            continue
+        title = make_unique_title()
+        upload_video_to_youtube(path, title, youtube_service)
+        os.remove(path)
+        print(f"🧹 حذف {file['name']} بعد الرفع")
+        break  # رفع فيديو واحد فقط لكل نافذة زمنية
+
+    push_uploaded_json()
+    print("🏁 Done!")
+
+if __name__ == "__main__":
+    main()
     with open("uploaded.json", "w") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
