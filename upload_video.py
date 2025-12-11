@@ -66,8 +66,9 @@ def get_drive_service():
     )
     return build('drive', 'v3', credentials=creds)
     
-    def get_youtube_service():
-         creds = Credentials(
+    
+def get_youtube_service():
+    creds = Credentials(
         None,
         refresh_token=os.getenv('YOUTUBE_REFRESH_TOKEN'),
         token_uri="https://oauth2.googleapis.com/token",
