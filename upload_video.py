@@ -1,134 +1,177 @@
 import os
-import random
-import json
-import time
-from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 import io
+import random
+import datetime
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+from google.auth.transport.requests import Request
 
-# -----------------------------
-# إعدادات ثابتة
-# -----------------------------
-DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
-SERVICE_ACCOUNT_FILE = "service_account.json"
+# 📋 قائمة العناوين الجاهزة
+video_titles = [
+    "تلاوة خاشعة تلامس القلوب", "صوت يريح القلب والعقل", "آيات تبعث الطمأنينة في النفس",
+    "تلاوة عذبة تدمع لها العيون", "استمع لتلاوة تهز المشاعر", "أجمل تلاوة قرآنية مؤثرة جدًا",
+    "تلاوة نادرة تبكي القلوب", "صوت ملائكي يشرح الصدر", "خشوع لا يُوصف أثناء التلاوة",
+    "تلاوة تهز الوجدان بخشوعها", "صوت يأخذك إلى عالم من السكينة", "أجمل ما تسمع من القرآن الكريم",
+    "لحظات روحانية لا تُنسى مع القرآن", "تلاوة تملأ القلب بالنور", "صوت يذكرك بالجنة",
+    "راحة نفسية لا توصف مع هذه التلاوة", "آيات تشرح الصدر وتُذهب الهم", "جمال الترتيل وروعة الأداء",
+    "صوت يدخل القلب بدون استئذان", "تلاوة هادئة قبل النوم تبعث السكينة",
+    "ترتيل يبكي الصخر من الخشوع", "تلاوة مؤثرة بصوت نادر الجمال", "قرآن يلامس الإحساس بعمق",
+    "استمع بقلبك لا بأذنك", "تلاوة هادئة تريح أعصابك وتملأك إيمانًا",
+    "خشوع لا مثيل له في هذه التلاوة", "صوت كأنه من السماء", "آيات من نور تملأ المكان طمأنينة",
+    "تلاوة تذكرك بلقاء الله", "صوت يبكي المستمعين بخشوعه", "لحظة صفاء مع كلام الله",
+    "استمع لتلاوة تجعلك تبكي من الخشوع", "تلاوة نادرة من المسجد الحرام", "ترتيل مؤثر من قلب صادق",
+    "صوت يبعث السكينة في كل من يسمع", "القرآن شفاء للقلوب — تلاوة مؤثرة جدًا",
+    "تلاوة تبعث الطمأنينة في ليل هادئ", "ترتيل ملائكي يلامس الأرواح", "تلاوة من أروع ما يكون",
+    "صوت يدخل القلب بلا مقدمات", "قرآن يُتلى بخشوع نادر", "استمع لهذه التلاوة وستشعر بالسكينة",
+    "ترتيل يبعث الدموع من شدة الخشوع", "تلاوة تهدئ القلب المرهق", "جمال الصوت وروعة الأداء القرآني",
+    "آيات تبكيك من جمالها", "تلاوة مؤثرة جدًا بصوت رائع", "لحظة مع كلام الله تبعث الطمأنينة",
+    "صوت مؤثر يذكّرك بالآخرة", "القرآن الكريم بصوت يريح النفس",
+    "استمع إلى أجمل ما قرئ من كتاب الله", "صوت نادر في تلاوة تبكي الحجر",
+    "تلاوة خاشعة تلامس الروح", "صوت يملأ المكان نورًا وطمأنينة", "ترتيل عذب يهز المشاعر"
+]
 
-# -----------------------------
-# خدمة Google Drive عبر Service Account
-# -----------------------------
+# 🧭 مجلد الفيديوهات في Google Drive
+
+FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
+
+# 🧩 إنشاء خدمة Google Drive
+
 def get_drive_service():
-    creds = ServiceAccountCredentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
+    credentials = ServiceAccountCredentials.from_service_account_info(
+        {
+  "type": "service_account",
+  "project_id": "quran-478116",
+  "private_key_id": "9afa7d003241409eab8c46514cdb1bdcebe192fe",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC61sax194Qban3\nCBDZfkdpahT7fRKMIDC2Jd42wzCV9BeLwUyxKDqkTbpT59fmvT9L7b++IHsx+Af0\nUCi9BSZQ2cRhpY0LueaMBxZ2Ov++HosL5bOIHhvAUByAqwUslSAVTtvdKgWNCP7Q\nlifyuPcuYhtk6jlBtTsz9OknN5/DobxC6PW/7Z1kQcTfgxGt9eRiXIGcjMdIzMAu\n/yJX/38bt6khxaCZiYF94rrMzOJI7NnXjexEeh0JmW6rDbnQhCgsQ4r2mOPYxq3f\nhAVcfarV8M4qC0yrpwOQg+n7jonw8e0lZRc+y1cjtyKcHc7rqCw0LmKpdhwaV4Cj\nJn3mPgctAgMBAAECggEAPJmZ86fxAkIXfSTUFj8TmXjLWnCMOf/c3M92fiucEB8O\nHgmxvsouDwmY9Er/53qdU5rG9LtjSedJaTAwrnJDpbikLgm8sD95LBTGb82eEoOk\nlNTJgM5HMP6q5/7QXE/4CoE75cWR7FctEumJBnyAy74NZZNkw8+s5qK6lro/avt2\nDdc/piaHDZElmgslokRHFG0609GRfEYeKZUM9nNOL42Ni+DOBW4y/TZyw7EbV8OY\n8TFRH6OjCCw5Mdi2E3c6tsqR8hERb2HqYg7Yn8swFt4X5hYigQEIC7kkbLIqToNL\nsri78pxYHedVO2qpVa6NQO13QXuO2Myyt1kEbUMm/wKBgQDa1oDMF/KoNQYlgARV\nDWe1ORRiitdtv1QeON/50TwSKfnNJR3+8Ya4k3u1DhfEPIyei7BZVbrBIphHDULh\n+nthhIUTr6kmt9qLyfwvdIizzK1kZrYsWz9QfoJwCzXNyBp6StJCovxeFbAxDOaO\n38o+TJrnqx7HerUxnlW6o9c89wKBgQDakTCSFFgu3XfQNOUH9y2uuOOj8vysSGx4\nOQIPm9FoAhsP0owEaL0Evf5E+hzswaEhgguo/yEeeK2X6HA2LPvYY40OHNnKKojp\nHP0cnG3bmD1143a+hSw17K/mFAk8lPjIPC+Y2ey5KWVzzKyoc8dM838TpmJ0ZU0n\n4iC0DqmH+wKBgCEsqWPHMZr8Rs1CheWa3aDkYUm7AIN7oLXgK1wEsxWR1XOa79wp\nIyIyAWvmEgZGo46ZYId6bpA+vVTwFraJMVEMNNxSIdNjxbaxTRComtye554zz+QT\nhRqfwwhXOrXSYuktFIjTimx83zPgX8dC97bQCB+cmlLlMDiwZxCfK87rAoGBAJdz\nK9jNSB2RUMhxHpLacEk1zGd6pCMtPBxCRG9UZVJQwze/iU401WVH0b0yIoDb2y9A\n0ZuUzfozXPZ6Fec0XH6g3Mj+rNsthhkiATGmI2maoFvj9hAmb3AeRfSDxbK493qo\nWcLsnt/fE3GeTbWcJGnqABA5ptdIqqIMSuT5k/epAoGBAMf77nLW5iZHxYB8bjVp\n2cWbtnvH/yMRRRNdeWSkV/RZDOGKWcGBSRER/HbbW5Ti9Jr3qi6CDjGiiXXiX0EX\nnhVWrJ+EXx4SDKGDpCUt/g5a7874FTpJCj/l192MTmBbr0I8G24rrhnLzGuJMIEC\neUYV6/SM0xYTOKBZSKJ4aETw\n-----END PRIVATE KEY-----\n", 
+  "client_email": "quran-833@quran-478116.iam.gserviceaccount.com",
+  "client_id": "115882713836588740161",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/quran-833%40quran-478116.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+},
         scopes=["https://www.googleapis.com/auth/drive"]
     )
-    return build("drive", "v3", credentials=creds)
+    return build('drive', 'v3', credentials=credentials)
 
-# -----------------------------
-# خدمة YouTube عبر OAuth Refresh Token
-# -----------------------------
+# 🧩 إنشاء خدمة YouTube
 def get_youtube_service():
     creds = Credentials(
         None,
-        refresh_token=os.getenv("YOUTUBE_REFRESH_TOKEN"),
+        refresh_token=os.getenv('YOUTUBE_REFRESH_TOKEN'),
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.getenv("YOUTUBE_CLIENT_ID"),
-        client_secret=os.getenv("YOUTUBE_CLIENT_SECRET")
+        client_id=os.getenv('YOUTUBE_CLIENT_ID'),
+        client_secret=os.getenv('YOUTUBE_CLIENT_SECRET'),
+        scopes=["https://www.googleapis.com/auth/youtube.upload"]
     )
     creds.refresh(Request())
-    return build("youtube", "v3", credentials=creds)
+    return build('youtube', 'v3', credentials=creds)
 
-# -----------------------------
-# اختيار فيديو عشوائي من Drive
-# -----------------------------
-def pick_random_video(drive):
-    query = f"'{DRIVE_FOLDER_ID}' in parents and mimeType contains 'video/'"
-    results = drive.files().list(q=query, fields="files(id, name)").execute()
-    files = results.get("files", [])
-
-    if not files:
-        print("❌ لا توجد فيديوهات في المجلد!")
-        return None
-
-    return random.choice(files)
-
-# -----------------------------
-# تنزيل الفيديو من Drive
-# -----------------------------
-def download_from_drive(drive, file_id, file_name):
-    request = drive.files().get_media(fileId=file_id)
-    fh = io.FileIO(file_name, "wb")
+# ⬇️ تحميل الفيديو من Google Drive
+def download_video_from_drive(file_id, file_name, drive_service):
+    request = drive_service.files().get_media(fileId=file_id)
+    fh = io.FileIO(file_name, 'wb')
     downloader = MediaIoBaseDownload(fh, request)
-
-    print(f"⬇️ جاري تنزيل: {file_name}")
     done = False
     while not done:
-        status, done = downloader.next_chunk()
-    print("✅ تم التنزيل")
+        _, done = downloader.next_chunk()
+    print(f"⬇️ تم تحميل {file_name}")
+    return file_name
 
-# -----------------------------
-# رفع الفيديو إلى YouTube
-# -----------------------------
-def upload_to_youtube(youtube, file_path, title):
-    print("📤 رفع الفيديو إلى YouTube ...")
-
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body={
-            "snippet": {"title": title},
-            "status": {"privacyStatus": "public"}
+# 🎥 رفع الفيديو إلى YouTube مع الجدولة
+def upload_video_to_youtube(file_path, title, scheduled_datetime, youtube_service, original_title):
+    body = {
+        "snippet": {
+            "title": title,
+            "description": (
+                "✨ استمع إلى تلاوة خاشعة مؤثرة من القرآن الكريم بصوت يلامس القلب 🌿\n"
+                "آيات تبعث فيك الراحة والسكينة وتذكّرك بعظمة كلام الله جلّ وعلا.\n"
+                "📖 استمع وتأمل لتعيش لحظة روحانية تملأ قلبك نورًا وإيمانًا.\n\n"
+                "🔔 اشترك بالقناة ليصلك كل جديد من أجمل التلاوات والقراءات النادرة.\n\n"
+                "#قرآن #Quran #تلاوة #تلاوة_خاشعة #القرآن_الكريم #آيات #راحة_نفسية #صوت_جميل #ماهر_المعيقلي #مشاري_العفاسي #عبدالرحمن_مسعد #خشوع #تلاوة_مؤثرة"
+            ),
+            "tags": [
+                "قرآن", "Quran", "تلاوة", "تلاوة خاشعة", "تلاوة مؤثرة", "القرآن الكريم",
+                "راحة نفسية", "صوت جميل", "آيات", "خشوع", "مشاري العفاسي", "عبد الرحمن مسعد",
+                "ماهر المعيقلي", "إسلام", "تدبر", "روحانية", "راحة القلب", "تلاوة قبل النوم",
+                "قراءة مؤثرة", "صوت يريح القلب", "تلاوة قرآنية", "قرآن بصوت رائع"
+            ]
         },
-        media_body=MediaFileUpload(file_path, chunksize=-1, resumable=True)
-    )
+        "status": {
+            "privacyStatus": "private",
+            "publishAt": scheduled_datetime.isoformat(),
+            "selfDeclaredMadeForKids": False
+        }
+    }
 
-    response = None
-    while response is None:
-        status, response = request.next_chunk()
+    media = MediaFileUpload(file_path, mimetype="video/*", resumable=True)
+    request = youtube_service.videos().insert(part="snippet,status", body=body, media_body=media)
+    response = request.execute()
 
-    print("🎉 تم رفع الفيديو بنجاح!")
-    print("🔗 Video ID:", response.get("id"))
+    print(f"✅ Uploaded: {title} | Publish at {scheduled_datetime.time()} | ID: {response['id']}")
+    with open("log.txt", "a", encoding="utf-8") as log:
+        log.write(f"{original_title} - {response['id']} - {scheduled_datetime}\n")
 
-# -----------------------------
-# حذف الفيديو من Google Drive
-# -----------------------------
-def delete_from_drive(drive, file_id):
-    drive.files().delete(fileId=file_id).execute()
-    print("🗑️ تم حذف الفيديو من Drive")
+# 🧠 التحقق من رفع العنوان مسبقًا
+def is_already_uploaded(title):
+    if not os.path.exists("log.txt"):
+        return False
+    with open("log.txt", "r", encoding="utf-8") as f:
+        return title in f.read()
 
-# -----------------------------
-# حفظ اسم الفيديو في سجل
-# -----------------------------
-def log_video(name):
-    with open("log.txt", "a", encoding="utf-8") as f:
-        f.write(name + "\n")
+# 🧩 إنشاء عنوان فريد (يتجنب التكرار)
+def make_unique_title():
+    while True:
+        new_title = random.choice(video_titles)
+        if not is_already_uploaded(new_title):
+            return new_title
 
-# -----------------------------
-# العملية الرئيسية
-# -----------------------------
+# 🚀 الكود الرئيسي
 def main():
-    print("🚀 بدء العملية...")
+    tz = datetime.timezone(datetime.timedelta(hours=1))  # الجزائر +1
+    now = datetime.datetime.now(tz)
 
-    drive = get_drive_service()
-    youtube = get_youtube_service()
+    # أوقات النشر اليوم (7، 10، 12، 16، 21)
+    today = now.date()
+    schedule_times = [7, 10, 12, 16, 21]
+    schedule = [
+        datetime.datetime.combine(today, datetime.time(h, 0), tzinfo=tz)
+        for h in schedule_times
+    ]
 
-    file = pick_random_video(drive)
-    if not file:
+    drive_service = get_drive_service()
+    youtube_service = get_youtube_service()
+
+    files = drive_service.files().list(
+        q=f"'{FOLDER_ID}' in parents and mimeType contains 'video/'",
+        fields="files(id, name)"
+    ).execute().get("files", [])
+
+    if not files:
+        print("⚠️ لا توجد فيديوهات في المجلد.")
         return
 
-    file_id = file["id"]
-    file_name = file["name"]
+    random.shuffle(files)  # عشوائية في الاختيار
+    selected_files = files[:5]
 
-    download_from_drive(drive, file_id, file_name)
-    upload_to_youtube(youtube, file_name, file_name)
+    for file, sched_time in zip(selected_files, schedule):
+        original_title = file["name"]
+        new_title = make_unique_title()
 
-    delete_from_drive(drive, file_id)
-    log_video(file_name)
+        # تحميل الفيديو
+        path = download_video_from_drive(file["id"], original_title, drive_service)
 
-    os.remove(file_name)
+        # رفع الفيديو المجدول
+        upload_video_to_youtube(path, new_title, sched_time, youtube_service, original_title)
 
-    print("✨ العملية اكتملت بنجاح!")
+        # حذف الفيديو المؤقت
+        os.remove(path)
+        print(f"🧹 حذف {original_title} بعد الرفع")
 
+    print("✅ تم جدولة ورفع 5 فيديوهات اليوم بنجاح.")
 
 if __name__ == "__main__":
     main()
