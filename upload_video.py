@@ -5,7 +5,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.credentials import Credentials
 
-FOLDER_ID = os.environ["1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"]
+FOLDER_ID = "1lLKbFPovufWeEkwpCgI3cM-Je-Uee9el"
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
