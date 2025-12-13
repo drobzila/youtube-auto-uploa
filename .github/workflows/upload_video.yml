@@ -1,36 +1,53 @@
-name: Auto YouTube Upload
+name: Upload Video to YouTube
 
 on:
   schedule:
-    - cron: "0 7,11,15,19,21 * * *"
+   - cron: '0 5 * * *' # 06:00 UTC = 07:00 صباحًا بتوقيت الجزائر
+  push:
+    branches:
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   upload:
     runs-on: ubuntu-latest
+    name: Upload YouTube Video
 
     steps:
-      - name: Checkout repo
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.x'
 
-      - name: Install requirements
-        run: pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
-
-      - name: Write credentials.json
-        run: echo "${{ secrets.GOOGLE_CREDENTIALS }}" > credentials.json
-
-      - name: Run script
-        run: python upload_video.py
-
-      - name: Commit updated uploaded.json
+      - name: 📦 Install dependencies
         run: |
-          git config user.email "actions@github.com"
-          git config user.name "GitHub Actions"
-          git add uploaded.json
-          git commit -m "update uploaded.json" || echo "No changes"
-          git push
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install packaging
+
+      - name: 🚀 Upload video to YouTube
+        run: |
+          echo "🚀 Starting upload..."
+          python upload_video.py
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+
+      - name: 🪶 Commit and push log changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add log.txt
+          git diff --cached --quiet || (
+            git commit -m "🪶 Update log with video upload status" || true
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git || true
+          )
+        continue-on-error: true
+
