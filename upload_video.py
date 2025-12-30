@@ -124,8 +124,7 @@ try:
     media = MediaFileUpload(video_name, resumable=True)
     description = f"""
 
-🔔 لا تنسَ الاشتراك وتفعيل الجرس
-🤲 شارك المقطع لعلّه يكون سبب راحة لغيرك
+تلاوة قصيرة من القرآن الكريم 🌿 #قرآن #Quran #تلاوة
 """
     request = youtube.videos().insert(
         part="snippet,status",
@@ -133,6 +132,7 @@ try:
             "snippet": {
                 "title": title,
                 "description": description,
+                "tags": ["قرآن", "Quran", "تلاوة", "راحة", "إيمان"],
                 "categoryId": "22"
             },
             "status": {"privacyStatus": "public"}
