@@ -9,6 +9,7 @@ from google.oauth2.credentials import Credentials
 # ================== إعدادات تلغرام ==================
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+
 if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
     raise RuntimeError("❌ متغيرات تلغرام غير مضافة في Secrets")
 
@@ -17,39 +18,51 @@ def upload_to_telegram(video_path, caption):
     with open(video_path, "rb") as video_file:
         r = requests.post(
             url,
-            data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption, "supports_streaming": True},
+            data={
+                "chat_id": TELEGRAM_CHAT_ID,
+                "caption": caption,
+                "supports_streaming": True
+            },
             files={"video": video_file}
         )
-    if r.status_code == 200:
+    if r.ok:
         print("📤 تم رفع الفيديو إلى تلغرام")
     else:
         print("❌ خطأ تلغرام:", r.text)
 
-# ================== قائمة Hooks جاهزة ==================
+# ================== Hooks (عناوين جذابة) ==================
 hooks = [
-    "قرآن يريح القلب 🤍", "تلاوة خاشعة تبعث السكينة", "آيات تهدئ النفس 🌿",
-    "صوت يلامس الروح", "خشوع بلا حدود", "لحظة سكينة 🎧", "تلاوة مؤثرة",
-    "نور القلب بالقرآن", "كلمات تطمئن القلب", "آرام القلوب بتلاوة القرآن",
-    "صوت الملائكة 🤲", "عبق الإيمان", "تلاوة تهدئ المشاعر", "رحمة القرآن في صوت",
-    "صفاء النفس مع القرآن", "أنغام السماء", "آرام الروح بالآيات", "لحظات خشوع",
-    "تلاوة قصيرة تلمس القلب", "نور الروح بالقرآن"
+    "قرآن يريح القلب 🤍",
+    "تلاوة خاشعة تبعث السكينة",
+    "آيات تهدئ النفس 🌿",
+    "صوت يلامس الروح",
+    "لحظة خشوع لا تُفوّت",
+    "راحة القلب بآيات الله",
+    "أنصت… هذا قرآن 🤲",
+    "تلاوة قصيرة ولكنها عميقة",
+    "نور الروح بالقرآن",
+    "سكينة لا توصف ✨"
 ]
 
 # ================== إعدادات Google ==================
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID")
 if not FOLDER_ID:
-    raise RuntimeError("❌ متغير DRIVE_FOLDER_ID غير موجود")
+    raise RuntimeError("❌ DRIVE_FOLDER_ID غير موجود")
 
-SCOPES = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/youtube.upload"
+]
 
 creds = Credentials.from_authorized_user_info(
-    info=eval(os.environ["GOOGLE_TOKEN"]), scopes=SCOPES
+    info=eval(os.environ["GOOGLE_TOKEN"]),
+    scopes=SCOPES
 )
 
 drive = build("drive", "v3", credentials=creds)
 youtube = build("youtube", "v3", credentials=creds)
 
-# ================== جلب فيديوهات Drive ==================
+# ================== جلب فيديو عشوائي ==================
 results = drive.files().list(
     q=f"'{FOLDER_ID}' in parents and mimeType contains 'video/'",
     fields="files(id, name)"
@@ -57,58 +70,69 @@ results = drive.files().list(
 
 files = results.get("files", [])
 if not files:
-    print("❌ لا يوجد فيديوهات في Drive")
-    exit()
+    raise RuntimeError("❌ لا يوجد فيديوهات في Google Drive")
 
 video = random.choice(files)
 video_id = video["id"]
 video_name = video["name"]
-print(f"🎬 اختيار الشورت: {video_name}")
+
+print(f"🎬 تم اختيار: {video_name}")
 
 # ================== تحميل الفيديو ==================
 request = drive.files().get_media(fileId=video_id)
 fh = io.FileIO(video_name, "wb")
 downloader = MediaIoBaseDownload(fh, request)
+
 done = False
 while not done:
     status, done = downloader.next_chunk()
+
 fh.close()
 print("⬇️ تم تحميل الفيديو")
 
-# ================== اختيار Hook ووصف ==================
+# ================== العنوان والوصف ==================
 title = random.choice(hooks) + " #Shorts"
 
-descriptions = [
-    f"{title}\n🤍 تلاوة قصيرة تبعث الطمأنينة\n#Shorts #Quran #قرآن",
-    f"{title}\n🎧 استمع بخشوع\n#Shorts #تلاوة #Quran",
-    f"{title}\n🌿 لحظة سكينة\n#Shorts #قرآن #Islam"
+description = (
+    f"{title}\n"
+    "🤍 تلاوة قصيرة تبعث الطمأنينة\n\n"
+    "#Shorts #Quran #قرآن #تلاوة #Islam"
+)
+
+tags = [
+    "Shorts", "Quran", "قرآن", "تلاوة",
+    "Islam", "QuranShorts", "تلاوة_خاشعة"
 ]
 
-description = random.choice(descriptions)
-tags = ["Shorts", "Quran", "قرآن", "تلاوة"]
-
-# ================== رفع الفيديو إلى تلغرام ==================
+# ================== رفع إلى تلغرام ==================
 telegram_caption = f"{title}\n🤍 تلاوة قصيرة\n#قرآن #Shorts"
 upload_to_telegram(video_name, telegram_caption)
 
-# ================== رفع الفيديو إلى يوتيوب ==================
+# ================== رفع إلى يوتيوب (غير مخصص للأطفال) ==================
 media = MediaFileUpload(video_name, resumable=True)
+
 youtube.videos().insert(
     part="snippet,status",
     body={
         "snippet": {
-            "title": title,
+            "title": title[:100],  # أمان
             "description": description,
             "tags": tags,
             "categoryId": "22"
         },
-        "status": {"privacyStatus": "public"}
+        "status": {
+            "privacyStatus": "public",
+            "madeForKids": False,
+            "selfDeclaredMadeForKids": False
+        }
     },
     media_body=media
 ).execute()
-print("✅ تم نشر الشورت بنجاح")
 
-# ================== حذف الفيديو من Drive والجهاز ==================
+print("✅ تم نشر الشورت بنجاح (غير مخصص للأطفال)")
+
+# ================== تنظيف ==================
 drive.files().delete(fileId=video_id).execute()
 os.remove(video_name)
-print("🧹 تم الحذف والتنظيف")
+
+print("🧹 تم حذف الفيديو من Drive والجهاز")
