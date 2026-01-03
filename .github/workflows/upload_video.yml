@@ -2,7 +2,7 @@ name: Upload Drive Video to YouTube & Telegram
 
 on:
   schedule:
-    - cron: "0 7,12,16,20,22 * * *"
+    - cron: "0 7,22 * * *"
   workflow_dispatch:
 
 jobs:
