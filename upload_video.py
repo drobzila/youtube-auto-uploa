@@ -3,7 +3,7 @@ import io
 import random
 import requests
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from googleapiclient.http import MediaIoBaseDownload
 from google.oauth2.credentials import Credentials
 
 # ================== إعدادات تلغرام ==================
@@ -30,27 +30,24 @@ def upload_to_telegram(video_path, caption):
     else:
         print("❌ خطأ تلغرام:", r.text)
 
-# ================== Hooks (عناوين جذابة) ==================
+# ================== Hooks ==================
 hooks = [
     "نُهيّئ قلوبنا لرمضان",
-    " القرآن جسر القلوب في رمضان للجنة ",
+    "القرآن جسر القلوب في رمضان للجنة",
     "تلاوة تُصلح القلب في رمضان",
     "سكينة رمضان",
-    " لا تُفوّت وقت رمضان ",
-    " فرصة رمضان ",
-    " ورمضان حياة ",
-    " نعود للقرآن في رمضان "
+    "لا تُفوّت وقت رمضان",
+    "فرصة رمضان",
+    "ورمضان حياة",
+    "نعود للقرآن في رمضان"
 ]
 
-# ================== إعدادات Google ==================
+# ================== إعدادات Google Drive ==================
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID")
 if not FOLDER_ID:
     raise RuntimeError("❌ DRIVE_FOLDER_ID غير موجود")
 
-SCOPES = [
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/youtube.upload"
-]
+SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 creds = Credentials.from_authorized_user_info(
     info=eval(os.environ["GOOGLE_TOKEN"]),
@@ -58,9 +55,8 @@ creds = Credentials.from_authorized_user_info(
 )
 
 drive = build("drive", "v3", credentials=creds)
-youtube = build("youtube", "v3", credentials=creds)
 
-# ================== جلب فيديو عشوائي ==================
+# ================== اختيار فيديو عشوائي ==================
 results = drive.files().list(
     q=f"'{FOLDER_ID}' in parents and mimeType contains 'video/'",
     fields="files(id, name)"
@@ -88,55 +84,19 @@ while not done:
 fh.close()
 print("⬇️ تم تحميل الفيديو")
 
-# ================== العنوان والوصف ==================
-base_title = random.choice(hooks)  # عناوين شعبان الموصلة لرمضان
-title = f"{base_title} #Shorts"
+# ================== كابشن تلغرام ==================
+base_title = random.choice(hooks)
 
-description = (
-    f"{base_title}\n\n"
-    "📖 القرآن نور القلوب وراحة النفوس\n\n"
-    "#Shorts #Quran #قرآن #رمضان #تلاوة #Islam"
-)
-
-tags = [
-    "Shorts", "Quran", "قرآن", "تلاوة",
-    "Islam", "QuranShorts",
-    "Ramadan"
-]
-
-# ================== رفع إلى تلغرام ==================
 telegram_caption = (
     f"{base_title}\n"
     "🤍 تلاوة قصيرة تسعد القلب في رمضان\n"
     "#قرآن #رمضان"
 )
 
+# ================== رفع إلى تلغرام ==================
 upload_to_telegram(video_name, telegram_caption)
 
-# ================== رفع إلى يوتيوب (غير مخصص للأطفال) ==================
-media = MediaFileUpload(video_name, resumable=True)
-
-youtube.videos().insert(
-    part="snippet,status",
-    body={
-        "snippet": {
-            "title": title[:100],  # أمان
-            "description": description,
-            "tags": tags,
-            "categoryId": "22"
-        },
-        "status": {
-            "privacyStatus": "public",
-            "madeForKids": False,
-            "selfDeclaredMadeForKids": False
-        }
-    },
-    media_body=media
-).execute()
-
-print("✅ تم نشر الشورت بنجاح (غير مخصص للأطفال)")
-
-# ================== تنظيف ==================
+# ================== حذف الفيديو ==================
 drive.files().delete(fileId=video_id).execute()
 os.remove(video_name)
 
